@@ -1,0 +1,47 @@
+spring:
+  web:
+   cors:
+    origin: '*'
+    credentials: false
+    methods: '*'
+   flow:
+    period: 3
+    limit: 40
+    block: 30
+  mail:
+    password: BEAGDULMBXDYOGGO
+    username: zhennan996@163.com
+    host: smtp.163.com
+  rabbitmq:
+    host: 8.134.93.74
+    username: xiao
+    password: feiwu
+    virtual-host: /
+    port: 5672
+    listener:
+      simple:
+        # 重试机制
+        retry:
+          enabled: true #是否开启消费者重试
+          max-attempts: 3 #最大重试次数
+          initial-interval: 5000ms #重试间隔时间（单位毫秒）
+          max-interval: 1200000ms #重试最大时间间隔（单位毫秒）
+          multiplier: 2 #间隔时间乘子，间隔时间*乘子=下一次的间隔时间，最大不能超过设置的最大间隔时间
+  data:
+    redis:
+      port: 6379
+      password: feiwu
+      host: 8.134.93.74
+  security:
+    jwt:
+     expire: 7
+     key: xznzzhxzn
+    filter:
+      order: -100
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: feiwu
+server:
+  port: 8081
