@@ -31,7 +31,7 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
 
     @Resource
     JwtUtils utils;
-
+    // TODO token过期没有重置
     @Override
     protected void doFilterInternal(HttpServletRequest request,
         HttpServletResponse response,

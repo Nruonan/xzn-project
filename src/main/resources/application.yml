@@ -1,4 +1,7 @@
 spring:
+  new:
+    key: c53ab64151ef00e4058b7e2e8894c99e
+    url: https://v.juhe.cn/toutiao/index
   web:
    cors:
     origin: '*'
