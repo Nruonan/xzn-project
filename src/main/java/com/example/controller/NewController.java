@@ -9,6 +9,7 @@ import cn.hutool.json.JSONUtil;
 
 import com.example.entity.RestBean;
 import com.example.entity.dao.NewDO;
+import jakarta.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -19,8 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,9 +40,25 @@ public class NewController {
 
     @Value("${spring.new.key}")
     private String key;
+    @Resource
+    StringRedisTemplate stringRedisTemplate;
 
     @GetMapping("/new")
     public RestBean< ArrayList<NewDO>> getNewList() throws IOException {
+        ArrayList<NewDO> list = new ArrayList<>();
+        // 从 Redis 获取数据，如果存在则直接返回
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey("xzn:project:new"))) {
+            String cachedData = stringRedisTemplate.opsForValue().get("xzn:project:new");
+            System.out.println(cachedData);
+            // 将 Redis 中的 JSON 字符串转换为 ArrayList<NewDO>
+            JSONArray cachedArray = JSONUtil.parseArray(cachedData);
+            for (int i = 0; i < cachedArray.size(); i++) {
+                JSONObject newJson = cachedArray.getJSONObject(i);
+                list.add(new NewDO(newJson.getStr("title"), newJson.getStr("url")));
+            }
+            return RestBean.success(list);
+        }
+
         HashMap<String, String> map = new HashMap<>();
         map.put("key", key);
         map.put("type", "top");
@@ -66,7 +85,7 @@ public class NewController {
         // 使用 Gson 解析 JSON 响应
         JSONObject jsonObject = JSONUtil.parseObj(response.toString());
         JSONArray newJsonArray = jsonObject.getJSONObject("result").getJSONArray("data");
-        ArrayList<NewDO> list = new ArrayList<>();
+
 
         for(int i = 0; i < newJsonArray.size(); i++){
             JSONObject newJson = newJsonArray.getJSONObject(i);
@@ -74,6 +93,9 @@ public class NewController {
             list.add(new NewDO(newJson.getStr("title"),newJson.getStr("url")));
 
         }
+        // 将数据存入 Redis，并设置过期时间（例如 1 小时）
+        // 将 List 转换为 JSON 字符串并存入 Redis
+        stringRedisTemplate.opsForValue().set("xzn:project:new", JSONUtil.toJsonStr(newJsonArray), 4, TimeUnit.HOURS);
         return RestBean.success(list);
     }
 
