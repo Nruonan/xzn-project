@@ -4,10 +4,13 @@ import com.example.entity.RestBean;
 import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.DetailsSaveReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
+import com.example.entity.dto.req.PrivacySaveReqDTO;
 import com.example.entity.dto.resp.AccountDetailsRespDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
+import com.example.entity.dto.resp.AccountPrivacyRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
 import com.example.service.AccountDetailsService;
+import com.example.service.AccountPrivacyService;
 import com.example.service.AccountService;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
@@ -35,6 +38,9 @@ public class AccountController {
 
     @Resource
     AccountDetailsService accountDetailsService;
+
+    @Resource
+    AccountPrivacyService accountPrivacyService;
 
     @GetMapping("/info")
     public RestBean<AccountInfoRespDTO> findAccountById(@RequestAttribute(Const.ATTR_USER_ID) int id){
@@ -66,5 +72,17 @@ public class AccountController {
     public RestBean<Void> changePassWord(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ChangePassWordReqDTO requestParam){
         String success  = accountService.changePassWord(id, requestParam);
         return success == null ? RestBean.success() :RestBean.failure(400,success);
+    }
+
+    @PostMapping("/save-privacy")
+    public RestBean<Void> savePrivacy(@RequestAttribute(Const.ATTR_USER_ID) int id,@RequestBody @Valid
+        PrivacySaveReqDTO requestParam){
+        accountPrivacyService.savePrivacy(id, requestParam);
+        return RestBean.success();
+    }
+
+    @GetMapping("/privacy")
+    public RestBean<AccountPrivacyRespDTO> privacy(@RequestAttribute(Const.ATTR_USER_ID) int id){
+        return RestBean.success(accountPrivacyService.accountPrivacy(id));
     }
 }
