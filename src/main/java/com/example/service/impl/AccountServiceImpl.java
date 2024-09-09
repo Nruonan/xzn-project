@@ -16,6 +16,7 @@ import com.example.entity.dao.AccountDO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
+import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
 import com.example.mapper.AccountMapper;
@@ -148,6 +149,29 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
         LambdaQueryWrapper<AccountDO> queryWrapper = Wrappers.lambdaQuery(AccountDO.class).eq(AccountDO::getId, id);
         AccountDO accountDO = this.baseMapper.selectOne(queryWrapper);
         return BeanUtil.toBean(accountDO, AccountInfoRespDTO.class);
+    }
+    /**
+     * 修改邮箱
+     * @param id 用户名
+     * @param requestParam 邮箱和验证码
+     * @return 操作是否成功
+     */
+    @Override
+    public String modifyEmail(int id, ModifyEmailReqDTO requestParam) {
+        String email = requestParam.getEmail();
+        String code = getEmailVerifyCode(requestParam.getEmail());
+        if (code == null)return "请先获取验证码!";
+        if (!code.equals(requestParam.getCode()))return "验证码错误，请重新输入";
+        this.deleteEmailVerifyCode(email);
+        AccountRespDTO account = this.findAccountByNameOrEmail(email);
+        if (account != null && account.getId() != id){
+            return "该电子邮件已被其他账号绑定，无法完成此操作";
+        }
+        LambdaUpdateWrapper<AccountDO> wrapper = Wrappers.lambdaUpdate(AccountDO.class)
+            .set(AccountDO::getEmail, email)
+            .eq(AccountDO::getId, id);
+        update(wrapper);
+        return null;
     }
 
     /**

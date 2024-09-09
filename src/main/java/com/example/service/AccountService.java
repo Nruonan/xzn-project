@@ -5,6 +5,7 @@ import com.example.entity.dao.AccountDO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
+import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,4 +24,6 @@ public interface AccountService extends IService<AccountDO> , UserDetailsService
     String resetEmailAccountPassword(EmailResetReqDTO requestParam);
 
     AccountInfoRespDTO findAccountById(int id);
+
+    String modifyEmail(int id, ModifyEmailReqDTO requestParam);
 }

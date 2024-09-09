@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.entity.RestBean;
 import com.example.entity.dto.req.DetailsSaveReqDTO;
+import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountDetailsRespDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
@@ -9,6 +10,7 @@ import com.example.service.AccountDetailsService;
 import com.example.service.AccountService;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,5 +50,11 @@ public class AccountController {
     public RestBean<Void> saveAccountDetails(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody DetailsSaveReqDTO requestParam){
         boolean success = accountDetailsService.saveAccountDetails(id, requestParam);
         return success ? RestBean.success() :RestBean.failure(400,"此用户名已被其他用户使用，请重新更换！");
+    }
+
+    @PostMapping("/modify-email")
+    public RestBean<Void> modifyEmail(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ModifyEmailReqDTO requestParam){
+        String success  = accountService.modifyEmail(id,requestParam);
+        return success == null ? RestBean.success() :RestBean.failure(400,success);
     }
 }
