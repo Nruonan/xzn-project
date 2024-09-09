@@ -39,6 +39,10 @@ spring:
     jwt:
      expire: 7
      key: xznzzhxzn
+     limit:
+      base: 10
+      upgrade: 300
+      frequency: 30
     filter:
       order: -100
   datasource:

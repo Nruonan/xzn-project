@@ -5,8 +5,9 @@ package com.example.utils;
  * @description
  */
 public class Const {
-    public static final String JWT_BLACK_LIST = "jwt:blacklist";
 
+    public static final String JWT_BLACK_LIST = "jwt:blacklist";
+    public final static String JWT_FREQUENCY = "jwt:frequency:";
     public static final String VERIFY_EMAIL_LIMIT = "verify:email:limit";
     public static final String VERIFY_EMAIL_DATA = "verify:email:data";
     public static final String ASK_EMAIL_CODE = "ask:email:code";
