@@ -15,5 +15,6 @@ public class AccountDetailsRespDTO {
     private Integer gender;
     private String qq;
     private String wx;
+    private String phone;
     private String desc;
 }

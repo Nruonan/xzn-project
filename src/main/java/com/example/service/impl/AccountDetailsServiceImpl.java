@@ -61,6 +61,7 @@ public class AccountDetailsServiceImpl extends ServiceImpl<AccountDetailsMapper,
             this.saveOrUpdate(AccountDetailsDO.builder()
                 .id(id)
                 .gender(requestParam.getGender())
+                .phone(requestParam.getPhone())
                 .wx(requestParam.getWx())
                 .qq(requestParam.getQq())
                 .desc(requestParam.getDesc()).build());
