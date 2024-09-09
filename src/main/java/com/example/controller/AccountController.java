@@ -1,6 +1,7 @@
 package com.example.controller;
 
 import com.example.entity.RestBean;
+import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.DetailsSaveReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountDetailsRespDTO;
@@ -11,6 +12,7 @@ import com.example.service.AccountService;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +44,9 @@ public class AccountController {
 
     @GetMapping("/details")
     public RestBean<AccountDetailsRespDTO> findAccountDetailsById(@RequestAttribute(Const.ATTR_USER_ID) int id){
-        AccountDetailsRespDTO dto = accountDetailsService.findAccountDetailsById(id);
+        AccountDetailsRespDTO dto = Optional
+            .ofNullable(accountDetailsService.findAccountDetailsById(id))
+            .orElseGet(AccountDetailsRespDTO::new);
         return RestBean.success(dto);
     }
 
@@ -55,6 +59,12 @@ public class AccountController {
     @PostMapping("/modify-email")
     public RestBean<Void> modifyEmail(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ModifyEmailReqDTO requestParam){
         String success  = accountService.modifyEmail(id,requestParam);
+        return success == null ? RestBean.success() :RestBean.failure(400,success);
+    }
+
+    @PostMapping("/change-password")
+    public RestBean<Void> changePassWord(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ChangePassWordReqDTO requestParam){
+        String success  = accountService.changePassWord(id, requestParam);
         return success == null ? RestBean.success() :RestBean.failure(400,success);
     }
 }

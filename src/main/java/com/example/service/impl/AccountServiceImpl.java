@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
+import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
@@ -172,6 +173,23 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
             .eq(AccountDO::getId, id);
         update(wrapper);
         return null;
+    }
+    /**
+     * 修改密码
+     * @param id 用户名
+     * @param requestParam 输入密码的表单
+     * @return 操作是否成功
+     */
+    @Override
+    public String changePassWord(int id, ChangePassWordReqDTO requestParam) {
+        LambdaQueryWrapper<AccountDO> select = Wrappers.lambdaQuery(AccountDO.class).eq(AccountDO::getId, id);
+        String password = baseMapper.selectOne(select).getPassword();
+        if (!passwordEncoder.matches(requestParam.getPassword(),password))  return "原密码输入错误，请重新输入!";
+        boolean success = this.update()
+            .eq("id",id)
+            .set("password",passwordEncoder.encode(requestParam.getNew_password()))
+            .update();
+        return success ? null :"未知错误，请联系管理员";
     }
 
     /**

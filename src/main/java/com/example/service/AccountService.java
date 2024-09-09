@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.entity.dao.AccountDO;
+import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
@@ -26,4 +27,6 @@ public interface AccountService extends IService<AccountDO> , UserDetailsService
     AccountInfoRespDTO findAccountById(int id);
 
     String modifyEmail(int id, ModifyEmailReqDTO requestParam);
+
+    String changePassWord(int id, ChangePassWordReqDTO requestParam);
 }
