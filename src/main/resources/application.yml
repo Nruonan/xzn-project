@@ -37,7 +37,7 @@ spring:
       host: 8.134.93.74
   security:
     jwt:
-     expire: 7
+     expire: 72
      key: xznzzhxzn
      limit:
       base: 10
@@ -50,5 +50,9 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: feiwu
+  minio:
+    endpoint: 'http://8.134.93.74:9000'
+    username: 'minio'
+    password: 'password'
 server:
   port: 8081

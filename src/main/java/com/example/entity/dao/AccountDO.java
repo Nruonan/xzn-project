@@ -19,6 +19,7 @@ public class AccountDO {
     private Integer id;
     private String username;
     private String password;
+    private String avatar;
     private String email;
     private String role;
     private Date registerTime;

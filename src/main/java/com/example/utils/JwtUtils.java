@@ -77,7 +77,7 @@ public class JwtUtils {
      */
     public Date expireTime() {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.SECOND, expire);
+        calendar.add(Calendar.HOUR, expire);
         return calendar.getTime();
     }
 
