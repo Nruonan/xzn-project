@@ -54,5 +54,7 @@ spring:
     endpoint: 'http://8.134.93.74:9000'
     username: 'minio'
     password: 'password'
+  weather:
+    key: 7554413210914257a74e8a1fddc1931f
 server:
   port: 8081
