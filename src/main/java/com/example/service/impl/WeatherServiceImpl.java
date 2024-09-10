@@ -36,24 +36,31 @@ public class WeatherServiceImpl implements WeatherService {
     }
 
     private WeatherDO fetchWeatherCache(double longitude, double latitude){
+        // 首先定位获取位置信息
         JSONObject geo = this.decompressStringToJson(restTemplate.getForObject(
             "https://geoapi.qweather.com/v2/city/lookup?location=" + longitude + "," + latitude + "&key=" + key,
             byte[].class));
         if (geo == null)return null;
+        // 获取位置信息中的id
         JSONObject location = geo.getJSONArray("location").getJSONObject(0);
         Integer id = location.getInteger("id");
+
         String key = "weather:"+id;
+        // 读取天气信息 如果有就可以直接返回
         String cache = stringRedisTemplate.opsForValue().get(key);
         if (cache != null){
             return JSONObject.parseObject(cache).to(WeatherDO.class);
         }
+        // 获取天气信息
         WeatherDO weatherDO = this.fetchFromAPI(id, location);
         if (weatherDO == null)return null;
+        // 缓存天气信息
         stringRedisTemplate.opsForValue().set(key,JSONObject.from(weatherDO).toJSONString(),1, TimeUnit.HOURS);
         return weatherDO;
     }
     private WeatherDO fetchFromAPI(int id,JSONObject location){
         WeatherDO weatherDO = new WeatherDO();
+        // 存入位置
         weatherDO.setLocation(location);
         JSONObject now = this.decompressStringToJson(restTemplate.getForObject(
             "https://devapi.qweather.com/v7/weather/now?location=" + id + "&key=" + key,
