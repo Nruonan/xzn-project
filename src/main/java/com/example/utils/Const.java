@@ -21,4 +21,7 @@ public class Const {
     public static final String FLOW_LIMIT_BLOCK_COUNTER = "flow:limit:counter";
     public static final String ROLE_DEFAULT = "user";
     public static final String ATTR_USER_ID = "userId";
+
+    public static final String FORUM_WEATHER_CACHE = "weather:cache:";
+    public static final String FORUM_IMAGE_CACHE = "image:cache:";
 }

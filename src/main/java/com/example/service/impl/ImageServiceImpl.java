@@ -1,8 +1,11 @@
 package com.example.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
+import com.example.entity.dao.ImageDO;
 import com.example.mapper.AccountMapper;
+import com.example.mapper.ImageMapper;
 import com.example.service.ImageService;
 import com.example.utils.Const;
 import com.example.utils.FlowUtils;
@@ -28,7 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Service
 @Slf4j
-public class ImageServiceImpl implements ImageService {
+public class ImageServiceImpl extends ServiceImpl<ImageMapper, ImageDO> implements ImageService {
     @Resource
     MinioClient client;
 
@@ -38,7 +41,7 @@ public class ImageServiceImpl implements ImageService {
     @Resource
     FlowUtils flowUtils;
 
-
+    SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
 
     @Override
     public String uploadAvatar(MultipartFile file, int id) throws IOException {
@@ -64,7 +67,32 @@ public class ImageServiceImpl implements ImageService {
         }
     }
 
-
+    @Override
+    public String uploadImage(MultipartFile file, int id) throws IOException {
+        String key = Const.FORUM_IMAGE_CACHE;
+        if (!flowUtils.limitPeriodCounterCheck(key,20,3600)){
+            return null;
+        }
+        String imageName = UUID.randomUUID().toString().replace("-", "");
+        Date date = new Date();
+        imageName = "/cache/" + format.format(date) +"/" + imageName;
+        PutObjectArgs args = PutObjectArgs.builder()
+            .bucket("study")
+            .stream(file.getInputStream(), file.getSize(), -1)
+            .object(imageName)
+            .build();
+        try {
+            client.putObject(args);
+            if (this.save(new ImageDO(id,imageName,date))){
+                return imageName;
+            }else{
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("图片上传出现问题: "+ e.getMessage(), e);
+            return null;
+        }
+    }
 
     @Override
     public void fetchImageFromMinio(OutputStream stream, String image) throws Exception {

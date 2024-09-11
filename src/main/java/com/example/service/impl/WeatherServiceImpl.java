@@ -1,5 +1,7 @@
 package com.example.service.impl;
 
+import static com.example.utils.Const.FORUM_WEATHER_CACHE;
+
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.dao.WeatherDO;
@@ -45,7 +47,7 @@ public class WeatherServiceImpl implements WeatherService {
         JSONObject location = geo.getJSONArray("location").getJSONObject(0);
         Integer id = location.getInteger("id");
 
-        String key = "weather:"+id;
+        String key = FORUM_WEATHER_CACHE+id;
         // 读取天气信息 如果有就可以直接返回
         String cache = stringRedisTemplate.opsForValue().get(key);
         if (cache != null){
