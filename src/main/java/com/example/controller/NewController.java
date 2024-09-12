@@ -47,10 +47,9 @@ public class NewController {
     @GetMapping("/new")
     public RestBean< ArrayList<NewDO>> getNewList() throws IOException {
         ArrayList<NewDO> list = new ArrayList<>();
-        String key = Const.FORUM_NEW_CACHE;
         // 从 Redis 获取数据，如果存在则直接返回
-        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey("xzn:project:new"))) {
-            String cachedData = stringRedisTemplate.opsForValue().get(key);
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(Const.FORUM_NEW_CACHE))) {
+            String cachedData = stringRedisTemplate.opsForValue().get(Const.FORUM_NEW_CACHE);
             System.out.println(cachedData);
             // 将 Redis 中的 JSON 字符串转换为 ArrayList<NewDO>
             JSONArray cachedArray = JSONUtil.parseArray(cachedData);
@@ -97,7 +96,7 @@ public class NewController {
         }
         // 将数据存入 Redis，并设置过期时间（例如 1 小时）
         // 将 List 转换为 JSON 字符串并存入 Redis
-        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(newJsonArray), 4, TimeUnit.HOURS);
+        stringRedisTemplate.opsForValue().set(Const.FORUM_NEW_CACHE, JSONUtil.toJsonStr(newJsonArray), 4, TimeUnit.HOURS);
         return RestBean.success(list);
     }
 
