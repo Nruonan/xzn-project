@@ -11,4 +11,5 @@ public class TopicTypeRespDTO {
     int id;
     String name;
     String desc;
+    String color;
 }

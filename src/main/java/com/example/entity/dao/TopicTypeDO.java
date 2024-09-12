@@ -15,4 +15,5 @@ public class TopicTypeDO {
     String name;
     @TableField("`desc`")
     String desc;
+    String color;
 }
