@@ -20,4 +20,6 @@ public class TopicDO{
     private Integer uid;
     private Integer type;
     private Date time;
+    String username;
+    String avatar;
 }

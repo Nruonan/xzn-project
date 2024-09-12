@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
 import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
 import com.example.service.TopicService;
 import com.example.service.WeatherService;
@@ -11,12 +12,15 @@ import com.example.utils.Const;
 import com.example.utils.ControllerUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -54,5 +58,8 @@ public class ForumController {
             topicService.createTopic(requestParam,id));
     }
 
-
+    @GetMapping("/list-topic")
+    public RestBean<List<TopicPreviewRespDTO>> listTopic(@RequestParam @Min(0) @Max(10) int page, @RequestParam @Min(0) int type){
+        return RestBean.success(topicService.listTopicByPage(page,type));
+    }
 }
