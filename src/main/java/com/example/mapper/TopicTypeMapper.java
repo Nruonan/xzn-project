@@ -9,6 +9,6 @@ import org.apache.ibatis.annotations.Mapper;
  * @description
  */
 @Mapper
-public interface TopicMapper extends BaseMapper<TopicTypeDO> {
+public interface TopicTypeMapper extends BaseMapper<TopicTypeDO> {
 
 }
