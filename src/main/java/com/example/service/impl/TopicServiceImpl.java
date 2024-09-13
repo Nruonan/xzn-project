@@ -22,9 +22,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Flow;
 import java.util.stream.Collectors;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 /**
@@ -42,6 +46,9 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     CacheUtils cacheUtils;
+
+    @Resource
+    RedissonClient redissonClient;
 
     private Set<Integer> types = null;
     @PostConstruct
@@ -78,7 +85,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         topic.setUid(uid);
         topic.setTime(new Date());
         if(this.save(topic)){
-            cacheUtils.deleteCache(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
+            cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
             return null;
         }else{
             return "内部错误，请联系管理员!";
@@ -89,18 +96,35 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Override
     public List<TopicPreviewRespDTO> listTopicByPage(int page, int type) {
         String key = Const.FORUM_TOPIC_PREVIEW_CACHE + page + ":" +  type;
+        String lockKey = "lock:" + key;
+        // 从缓存中获取数据
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
-        List<TopicDO> topics;
-        if (type == 0){
-            // 全查
-            topics = baseMapper.topicList(page * 10);
-        }else{
-            topics = baseMapper.topicListByType(page * 10, type);
+        RLock lock = redissonClient.getLock(lockKey);
+
+        try{
+            if (!lock.tryLock()){
+                // 再次检查缓存是否已经被其他线程更新
+                list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
+                if (list != null) {
+                    return list;
+                }
+            }
+            List<TopicDO> topics = (type == 0) ? baseMapper.topicList(page * 10)
+                :baseMapper.topicListByType(page * 10, type);
+
+            if (topics.isEmpty()) {
+                // 将空值也存入缓存，避免缓存穿透
+                cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
+                return new ArrayList<>();
+            }
+            list = topics.stream().map(this::resolveToPreview).toList();
+            cacheUtils.saveListToCache(key , list, 60);
+        }catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();  // 释放锁
         }
-        if (topics.isEmpty())return null;
-        list = topics.stream().map(this::resolveToPreview).toList();
-        cacheUtils.saveListToCache(key , list, 60);
         return list;
     }
 
