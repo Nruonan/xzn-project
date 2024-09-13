@@ -60,6 +60,6 @@ public class ForumController {
 
     @GetMapping("/list-topic")
     public RestBean<List<TopicPreviewRespDTO>> listTopic(@RequestParam @Min(0) @Max(10) int page, @RequestParam @Min(0) int type){
-        return RestBean.success(topicService.listTopicByPage(page,type));
+        return RestBean.success(topicService.listTopicByPage(page + 1,type));
     }
 }

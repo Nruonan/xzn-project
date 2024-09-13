@@ -3,6 +3,12 @@ package com.example.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
@@ -94,14 +100,14 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
 
     @Override
-    public List<TopicPreviewRespDTO> listTopicByPage(int page, int type) {
-        String key = Const.FORUM_TOPIC_PREVIEW_CACHE + page + ":" +  type;
+    public List<TopicPreviewRespDTO> listTopicByPage(int pageNumber, int type) {
+        String key = Const.FORUM_TOPIC_PREVIEW_CACHE + pageNumber + ":" +  type;
         String lockKey = "lock:" + key;
         // 从缓存中获取数据
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
         RLock lock = redissonClient.getLock(lockKey);
-
+        Page<TopicDO> page = new Page<>(pageNumber , 10);
         try{
             if (!lock.tryLock()){
                 // 再次检查缓存是否已经被其他线程更新
@@ -110,9 +116,13 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
                     return list;
                 }
             }
-            List<TopicDO> topics = (type == 0) ? baseMapper.topicList(page * 10)
-                :baseMapper.topicListByType(page * 10, type);
+            if (type == 0){
+                baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class).orderByDesc(TopicDO::getTime));
+            }else{
+                baseMapper.selectPage(page,Wrappers.lambdaQuery(TopicDO.class).eq(TopicDO::getType,type).orderByDesc(TopicDO::getTime));
+            }
 
+            List<TopicDO> topics = page.getRecords();
             if (topics.isEmpty()) {
                 // 将空值也存入缓存，避免缓存穿透
                 cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
@@ -130,6 +140,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     private TopicPreviewRespDTO resolveToPreview(TopicDO topicDO){
         TopicPreviewRespDTO bean = BeanUtil.toBean(topicDO, TopicPreviewRespDTO.class);
+        bean.setUid(topicDO.getUid());
         List<String> images = new ArrayList<>();
         StringBuilder previewText = new StringBuilder();
         JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
