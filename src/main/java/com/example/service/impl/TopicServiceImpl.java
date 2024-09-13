@@ -10,13 +10,22 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.entity.dao.AccountDO;
+import com.example.entity.dao.AccountDetailsDO;
+import com.example.entity.dao.AccountPrivacyDO;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.resp.TopicDetailRespDTO;
+import com.example.entity.dto.resp.TopicDetailRespDTO.User;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
+import com.example.mapper.AccountDetailsMapper;
+import com.example.mapper.AccountMapper;
+import com.example.mapper.AccountPrivacyMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
+import com.example.service.AccountPrivacyService;
 import com.example.service.TopicService;
 import com.example.utils.CacheUtils;
 import com.example.utils.Const;
@@ -35,6 +44,7 @@ import java.util.stream.Collectors;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 /**
@@ -55,6 +65,15 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     RedissonClient redissonClient;
+
+    @Resource
+    AccountMapper accountMapper;
+
+    @Resource
+    AccountDetailsMapper accountDetailsMapper;
+
+    @Resource
+    AccountPrivacyMapper accountPrivacyMapper;
 
     private Set<Integer> types = null;
     @PostConstruct
@@ -138,6 +157,29 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         return list;
     }
 
+    @Override
+    public TopicDetailRespDTO getTopic(int id) {
+        // 查询文章信息
+        TopicDO topic = baseMapper.selectById(id);
+        // 克隆到文章详细对象
+        TopicDetailRespDTO topicDetailRespDTO = BeanUtil.toBean(topic,TopicDetailRespDTO.class);
+        TopicDetailRespDTO.User user = new TopicDetailRespDTO.User();
+        topicDetailRespDTO.setUser(this.fillUserDetailByPrivacy(user,topic.getUid()));
+        return topicDetailRespDTO;
+    }
+    private <T> T fillUserDetailByPrivacy(T target, int uid){
+        AccountDO accountDO = accountMapper.selectById(uid);
+        AccountDetailsDO accountDetailsDO = accountDetailsMapper.selectById(uid);
+        AccountPrivacyDO accountPrivacyDO = accountPrivacyMapper.selectById(uid);
+        // 获取隐藏不要的数据
+        String[] strings = accountPrivacyDO.hiddenFields();
+        // 克隆除了隐藏的数据
+        BeanUtils.copyProperties(accountDO,target,strings);
+        BeanUtils.copyProperties(accountDetailsDO,target,strings);
+        return target;
+
+    }
+    // 解析帖子
     private TopicPreviewRespDTO resolveToPreview(TopicDO topicDO){
         TopicPreviewRespDTO bean = BeanUtil.toBean(topicDO, TopicPreviewRespDTO.class);
         bean.setUid(topicDO.getUid());
