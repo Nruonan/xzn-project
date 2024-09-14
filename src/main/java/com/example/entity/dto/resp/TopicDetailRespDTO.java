@@ -24,7 +24,7 @@ public class TopicDetailRespDTO {
        String username;
        String avatar;
        String desc;
-       boolean gender;
+       Integer gender;
        String qq;
        String wx;
        String phone;
