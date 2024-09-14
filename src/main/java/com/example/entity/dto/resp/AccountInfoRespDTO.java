@@ -16,5 +16,6 @@ public class AccountInfoRespDTO {
     private String username;
     private String email;
     private String role;
+    String avatar;
     private Date registerTime;
 }

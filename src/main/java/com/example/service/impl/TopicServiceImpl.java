@@ -182,7 +182,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     // 解析帖子
     private TopicPreviewRespDTO resolveToPreview(TopicDO topicDO){
         TopicPreviewRespDTO bean = BeanUtil.toBean(topicDO, TopicPreviewRespDTO.class);
-        bean.setUid(topicDO.getUid());
+        BeanUtils.copyProperties(accountMapper.selectById(topicDO.getUid()),bean);
         List<String> images = new ArrayList<>();
         StringBuilder previewText = new StringBuilder();
         JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
