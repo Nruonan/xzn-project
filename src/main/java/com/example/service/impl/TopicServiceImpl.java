@@ -16,6 +16,7 @@ import com.example.entity.dao.AccountPrivacyDO;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO.User;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
@@ -155,6 +156,15 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             lock.unlock();  // 释放锁
         }
         return list;
+    }
+
+    @Override
+    public List<TopTopicRespDTO> listTopTopics() {
+        List<TopicDO> topicDOS = baseMapper.selectList(Wrappers.<TopicDO>query().select("id","title","time")
+            .eq("top",1));
+        return topicDOS.stream().map(topic -> {
+            return BeanUtil.toBean(topic, TopTopicRespDTO.class);
+        }).toList();
     }
 
     @Override

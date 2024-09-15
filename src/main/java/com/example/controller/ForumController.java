@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
 import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
@@ -64,6 +65,10 @@ public class ForumController {
         return RestBean.success(topicService.listTopicByPage(page + 1,type));
     }
 
+    @GetMapping("/top-topic")
+    public RestBean<List<TopTopicRespDTO>> listTopTopics(){
+        return RestBean.success(topicService.listTopTopics());
+    }
     @GetMapping("/topic")
     public RestBean<TopicDetailRespDTO> topic(@RequestParam(value = "tid") @Min(0) int tid){
         return RestBean.success(topicService.getTopic(tid));
