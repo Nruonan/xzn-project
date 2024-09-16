@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
+import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
@@ -35,17 +36,24 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -53,6 +61,7 @@ import org.springframework.stereotype.Service;
  * @description
  */
 @Service
+@Slf4j
 public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implements TopicService {
 
     @Resource
@@ -75,6 +84,9 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     AccountPrivacyMapper accountPrivacyMapper;
+
+    @Resource
+    StringRedisTemplate stringRedisTemplate;
 
     private Set<Integer> types = null;
     @PostConstruct
@@ -176,6 +188,57 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         TopicDetailRespDTO.User user = new TopicDetailRespDTO.User();
         topicDetailRespDTO.setUser(this.fillUserDetailByPrivacy(user,topic.getUid()));
         return topicDetailRespDTO;
+    }
+
+    @Override
+    public void interact(Interact interact, boolean state) {
+        String type = interact.getType();
+        synchronized (type.intern()){
+            stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
+            this.saveInteractSchedule(type);
+        }
+    }
+
+    private final Map<String, Boolean> state = new HashMap<>();
+    ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
+    private void saveInteractSchedule(String type){
+        // 获取map是否有值
+        if (!state.getOrDefault(type,false)){
+            // 设置类型存入为true
+            state.put(type, true);
+            service.schedule(() ->{
+                // 存入数据到数据库
+                this.saveInteract(type);
+                // 删除
+                state.put(type,false);
+            },3, TimeUnit.SECONDS);
+        }
+    }
+    private void saveInteract(String type){
+        // 上锁对点赞还是收藏
+        synchronized (type.intern()) {
+            // 创建两个链表接受数据
+            List<Interact> check = new LinkedList<>();
+            List<Interact> uncheck = new LinkedList<>();
+            stringRedisTemplate.opsForHash().entries(type).forEach((k, v) -> {
+                // 从redis中获取数据
+                if (Boolean.parseBoolean(v.toString())) {
+                    // 根据bool值添加到相应的链表
+                    check.add(Interact.parseInteract(k.toString(), type));
+                } else {
+                    uncheck.add(Interact.parseInteract(k.toString(), type));
+                }
+            });
+            // 存在数据库
+            if (!check.isEmpty()) {
+                baseMapper.addInteract(check, type);
+            }
+            if (!uncheck.isEmpty()) {
+                baseMapper.deleteInteract(uncheck, type);
+            }
+            // 删除redis数据
+            stringRedisTemplate.delete(type);
+        }
     }
     private <T> T fillUserDetailByPrivacy(T target, int uid){
         AccountDO accountDO = accountMapper.selectById(uid);

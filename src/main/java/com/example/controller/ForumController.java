@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
+import com.example.entity.dao.Interact;
 import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
@@ -16,6 +17,8 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import java.util.Date;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,5 +75,12 @@ public class ForumController {
     @GetMapping("/topic")
     public RestBean<TopicDetailRespDTO> topic(@RequestParam(value = "tid") @Min(0) int tid){
         return RestBean.success(topicService.getTopic(tid));
+    }
+
+    @GetMapping("/interact")
+    public RestBean<Void> interact(@RequestParam @Min(0)int tid, @RequestParam @Pattern(regexp = "(like|collect)") String type,
+        @RequestParam boolean state, @RequestAttribute(Const.ATTR_USER_ID) int id){
+        topicService.interact(new Interact(tid, id, new Date(),type),state);
+        return RestBean.success();
     }
 }

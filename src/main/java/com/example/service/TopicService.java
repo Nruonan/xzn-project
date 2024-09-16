@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
@@ -26,4 +27,6 @@ public interface TopicService  extends IService<TopicDO> {
 
 
     List<TopTopicRespDTO> listTopTopics();
+
+    void interact(Interact interact, boolean state);
 }
