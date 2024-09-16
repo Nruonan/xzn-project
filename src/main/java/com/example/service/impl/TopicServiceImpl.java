@@ -267,11 +267,15 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
     // 解析帖子
     private TopicPreviewRespDTO resolveToPreview(TopicDO topicDO){
+        // 获取帖子
         TopicPreviewRespDTO bean = new TopicPreviewRespDTO();
+        // 得到user属性
         BeanUtils.copyProperties(accountMapper.selectById(topicDO.getUid()),bean);
+        // 得到帖子属性
         BeanUtils.copyProperties(topicDO, bean);
         bean.setLike(baseMapper.interactCount(topicDO.getId(),"like"));
         bean.setCollect(baseMapper.interactCount(topicDO.getId(),"collect"));
+        // 获取点赞收藏
         List<String> images = new ArrayList<>();
         StringBuilder previewText = new StringBuilder();
         JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
