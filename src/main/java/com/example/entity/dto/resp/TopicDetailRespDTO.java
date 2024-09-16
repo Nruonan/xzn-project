@@ -2,6 +2,7 @@ package com.example.entity.dto.resp;
 
 
 import java.util.Date;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -16,7 +17,13 @@ public class TopicDetailRespDTO {
    Integer type;
    Date time;
    User user;
-
+   Interact interact;
+   @Data
+   @AllArgsConstructor
+   public static class Interact{
+       Boolean like;
+       Boolean collect;
+   }
 
    @Data
    public static class User{

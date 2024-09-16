@@ -180,12 +180,17 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
 
     @Override
-    public TopicDetailRespDTO getTopic(int id) {
+    public TopicDetailRespDTO getTopic(int tid) {
         // 查询文章信息
-        TopicDO topic = baseMapper.selectById(id);
+        TopicDO topic = baseMapper.selectById(tid);
         // 克隆到文章详细对象
         TopicDetailRespDTO topicDetailRespDTO = BeanUtil.toBean(topic,TopicDetailRespDTO.class);
         TopicDetailRespDTO.User user = new TopicDetailRespDTO.User();
+        TopicDetailRespDTO.Interact interact = new TopicDetailRespDTO.Interact(
+            hasInteract(tid,topic.getUid(),"like"),
+            hasInteract(tid,topic.getUid(),"collect")
+        );
+        topicDetailRespDTO.setInteract(interact);
         topicDetailRespDTO.setUser(this.fillUserDetailByPrivacy(user,topic.getUid()));
         return topicDetailRespDTO;
     }
@@ -197,6 +202,14 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
             this.saveInteractSchedule(type);
         }
+    }
+
+    private boolean hasInteract(int tid, int uid, String type){
+        String key = tid + ":" + uid;
+        if (stringRedisTemplate.opsForHash().hasKey(type, key)) {
+            return Boolean.parseBoolean(stringRedisTemplate.opsForHash().entries(type).get(key).toString());
+        }
+        return baseMapper.userInteractCount(tid,uid,type) > 0;
     }
 
     private final Map<String, Boolean> state = new HashMap<>();
@@ -257,6 +270,8 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         TopicPreviewRespDTO bean = new TopicPreviewRespDTO();
         BeanUtils.copyProperties(accountMapper.selectById(topicDO.getUid()),bean);
         BeanUtils.copyProperties(topicDO, bean);
+        bean.setLike(baseMapper.interactCount(topicDO.getId(),"like"));
+        bean.setCollect(baseMapper.interactCount(topicDO.getId(),"collect"));
         List<String> images = new ArrayList<>();
         StringBuilder previewText = new StringBuilder();
         JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
