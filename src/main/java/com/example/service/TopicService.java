@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
+import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
@@ -35,4 +36,6 @@ public interface TopicService  extends IService<TopicDO> {
     List<TopicCollectRespDTO> getCollects(int id);
 
     String updateTopic(TopicUpdateReqDTO requestParam, int uid);
+
+    String addComment(int id, AddCommentReqDTO requestParam);
 }

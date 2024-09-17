@@ -28,4 +28,6 @@ public class Const {
     public static final String FORUM_TOPIC_CREATE_COUNTER = "xzn:topic:create";
 
     public static final String FORUM_TOPIC_PREVIEW_CACHE = "xzn:topic:preview";
+
+    public static final String FORUM_TOPIC_COMMENT_COUNTER = "xzn:topic:comment";
 }

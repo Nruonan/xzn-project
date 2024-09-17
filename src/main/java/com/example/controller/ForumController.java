@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.WeatherDO;
+import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
@@ -96,5 +97,12 @@ public class ForumController {
         @RequestAttribute(Const.ATTR_USER_ID) int id){
         return utils.messageHandle(() ->
             topicService.updateTopic(requestParam,id));
+    }
+
+    @PostMapping("/add-comment")
+    public RestBean<Void> addComment(@Valid @RequestBody AddCommentReqDTO requestParam,
+                                     @RequestAttribute(Const.ATTR_USER_ID)int id){
+        return utils.messageHandle(() ->
+            topicService.addComment(id,requestParam));
     }
 }

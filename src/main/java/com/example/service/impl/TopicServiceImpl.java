@@ -15,8 +15,10 @@ import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
 import com.example.entity.dao.Interact;
+import com.example.entity.dao.TopicCommentDO;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
+import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
@@ -28,6 +30,7 @@ import com.example.entity.dto.resp.TopicTypeRespDTO;
 import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
 import com.example.mapper.AccountPrivacyMapper;
+import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
 import com.example.service.AccountPrivacyService;
@@ -91,6 +94,8 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Resource
     StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    TopicCommentMapper topicCommentMapper;
     private Set<Integer> types = null;
     @PostConstruct
     private void initTypes() {
@@ -281,6 +286,29 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             stringRedisTemplate.delete(type);
         }
     }
+    /**
+     * @param requestParam 评论内容
+     * @param uid 评论用户id
+     */
+    @Override
+    public String addComment(int uid, AddCommentReqDTO requestParam) {
+
+        String key = Const.FORUM_TOPIC_COMMENT_COUNTER + uid;
+        // 检验内容
+        if (!textLimitCheck(JSONObject.parseObject(requestParam.getContent()),2000)){
+            return "评论内容太多，发表失败！";
+        }
+        // 检验发文频繁
+        if (!flowUtils.limitPeriodCounterCheck(key,2,60)){
+            return "发表评论频繁，请稍后再试！";
+        }
+        TopicCommentDO bean = BeanUtil.toBean(requestParam, TopicCommentDO.class);
+        bean.setUid(uid);
+        bean.setTime(new Date());
+        topicCommentMapper.insert(bean);
+        return null;
+    }
+
     private <T> T fillUserDetailByPrivacy(T target, int uid){
         AccountDO accountDO = accountMapper.selectById(uid);
         AccountDetailsDO accountDetailsDO = accountDetailsMapper.selectById(uid);
