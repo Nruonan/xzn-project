@@ -74,8 +74,8 @@ public class ForumController {
         return RestBean.success(topicService.listTopTopics());
     }
     @GetMapping("/topic")
-    public RestBean<TopicDetailRespDTO> topic(@RequestParam(value = "tid") @Min(0) int tid){
-        return RestBean.success(topicService.getTopic(tid));
+    public RestBean<TopicDetailRespDTO> topic(@RequestParam(value = "tid") @Min(0) int tid,@RequestAttribute(Const.ATTR_USER_ID)int uid){
+        return RestBean.success(topicService.getTopic(tid,uid));
     }
 
     @GetMapping("/interact")

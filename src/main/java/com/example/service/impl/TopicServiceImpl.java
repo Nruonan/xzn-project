@@ -181,15 +181,15 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
 
     @Override
-    public TopicDetailRespDTO getTopic(int tid) {
+    public TopicDetailRespDTO getTopic(int tid, int uid) {
         // 查询文章信息
         TopicDO topic = baseMapper.selectById(tid);
         // 克隆到文章详细对象
         TopicDetailRespDTO topicDetailRespDTO = BeanUtil.toBean(topic,TopicDetailRespDTO.class);
         TopicDetailRespDTO.User user = new TopicDetailRespDTO.User();
         TopicDetailRespDTO.Interact interact = new TopicDetailRespDTO.Interact(
-            hasInteract(tid,topic.getUid(),"like"),
-            hasInteract(tid,topic.getUid(),"collect")
+            hasInteract(tid,uid,"like"),
+            hasInteract(tid,uid,"collect")
         );
         topicDetailRespDTO.setInteract(interact);
         topicDetailRespDTO.setUser(this.fillUserDetailByPrivacy(user,topic.getUid()));

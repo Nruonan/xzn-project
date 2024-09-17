@@ -24,7 +24,7 @@ public interface TopicService  extends IService<TopicDO> {
 
     List<TopicPreviewRespDTO> listTopicByPage(int page, int type);
 
-    TopicDetailRespDTO getTopic(int id);
+    TopicDetailRespDTO getTopic(int id, int uid);
 
 
     List<TopTopicRespDTO> listTopTopics();
