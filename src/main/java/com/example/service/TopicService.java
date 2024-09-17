@@ -5,6 +5,7 @@ import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -32,4 +33,6 @@ public interface TopicService  extends IService<TopicDO> {
     void interact(Interact interact, boolean state);
 
     List<TopicCollectRespDTO> getCollects(int id);
+
+    String updateTopic(TopicUpdateReqDTO requestParam, int uid);
 }

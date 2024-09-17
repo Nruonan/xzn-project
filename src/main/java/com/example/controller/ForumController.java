@@ -5,6 +5,7 @@ import com.example.entity.RestBean;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -88,5 +89,12 @@ public class ForumController {
     @GetMapping("/collects")
     public RestBean<List<TopicCollectRespDTO>> collects(@RequestAttribute(Const.ATTR_USER_ID) int id){
         return RestBean.success(topicService.getCollects(id));
+    }
+
+    @PostMapping("/update-topic")
+    public RestBean<Void> updateTopic(@Valid @RequestBody TopicUpdateReqDTO requestParam,
+        @RequestAttribute(Const.ATTR_USER_ID) int id){
+        return utils.messageHandle(() ->
+            topicService.updateTopic(requestParam,id));
     }
 }

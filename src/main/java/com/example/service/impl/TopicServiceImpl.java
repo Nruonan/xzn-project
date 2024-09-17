@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
@@ -17,6 +18,7 @@ import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
+import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -131,7 +133,24 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         }
 
     }
-
+    @Override
+    public String updateTopic(TopicUpdateReqDTO requestParam, int uid) {
+        if (!this.textLimitCheck(requestParam.getContent(),20000)) {
+            return "文章内容太多，发文失败！";
+        }
+        if (!types.contains(requestParam.getType())) {
+            return "文章类型非法";
+        }
+        LambdaUpdateWrapper<TopicDO> wrapper = Wrappers.lambdaUpdate(TopicDO.class)
+            .eq(TopicDO::getUid,uid)
+            .eq(TopicDO::getId,requestParam.getId())
+            .set(TopicDO::getTitle,requestParam.getTitle())
+            .set(TopicDO::getContent,requestParam.getContent().toJSONString())
+            .set(TopicDO::getType,requestParam.getType());
+        boolean update = update(wrapper);
+        if (update)return null;
+        else return "修改失败，请联系管理员!";
+    }
     @Override
     public List<TopicPreviewRespDTO> listTopicByPage(int pageNumber, int type) {
         String key = Const.FORUM_TOPIC_PREVIEW_CACHE + pageNumber + ":" +  type;
@@ -210,6 +229,8 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         List<TopicDO> topicDOS = baseMapper.collectTopics(id);
         return BeanUtil.copyToList(topicDOS,TopicCollectRespDTO.class);
     }
+
+
 
     private boolean hasInteract(int tid, int uid, String type){
         String key = tid + ":" + uid;
