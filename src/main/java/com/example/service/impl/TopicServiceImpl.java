@@ -18,6 +18,7 @@ import com.example.entity.dao.TopicDO;
 import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
+import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO.User;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
@@ -202,6 +203,12 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
             this.saveInteractSchedule(type);
         }
+    }
+
+    @Override
+    public List<TopicCollectRespDTO> getCollects(int id) {
+        List<TopicDO> topicDOS = baseMapper.collectTopics(id);
+        return BeanUtil.copyToList(topicDOS,TopicCollectRespDTO.class);
     }
 
     private boolean hasInteract(int tid, int uid, String type){

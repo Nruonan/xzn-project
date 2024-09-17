@@ -51,4 +51,12 @@ public interface TopicMapper extends BaseMapper<TopicDO> {
           </script>
     """)
     int userInteractCount(int tid, int uid, String type);
+
+    @Select("""
+        <script>
+            select * from db_topic_interact_collect left join db_topic on db_topic.id = tid
+                where db_topic_interact_collect.uid = #{uid}
+        </script>
+    """)
+    List<TopicDO> collectTopics(int uid);
 }

@@ -6,6 +6,7 @@ import com.example.entity.dao.Interact;
 import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
+import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
@@ -82,5 +83,10 @@ public class ForumController {
         @RequestParam boolean state, @RequestAttribute(Const.ATTR_USER_ID) int id){
         topicService.interact(new Interact(tid, id, new Date(),type),state);
         return RestBean.success();
+    }
+
+    @GetMapping("/collects")
+    public RestBean<List<TopicCollectRespDTO>> collects(@RequestAttribute(Const.ATTR_USER_ID) int id){
+        return RestBean.success(topicService.getCollects(id));
     }
 }
