@@ -332,17 +332,16 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     private List<CommentRespDTO> toCommentList(List<TopicCommentDO> list) {
         return list.stream().map(dto -> {
             CommentRespDTO bean = BeanUtil.toBean(dto, CommentRespDTO.class);
-            if (dto.getQuote() > 0){
-                JSONObject object = JSONObject.parseObject(
-                    topicCommentMapper.selectOne(
-                        Wrappers.lambdaQuery(TopicCommentDO.class).eq(TopicCommentDO::getId, bean.getId())).getContent()
-                );
-                StringBuilder builder= new StringBuilder();
-                this.shortContent(object.getJSONArray("ops"),builder,(ignore ->{}));
-                bean.setQuote(builder.toString());
-            }
+//            if (dto.getQuote() > 0){
+//                JSONObject object = JSONObject.parseObject(
+//                    topicCommentMapper.selectOne(
+//                        Wrappers.lambdaQuery(TopicCommentDO.class).eq(TopicCommentDO::getId, bean.getId())).getContent()
+//                );
+//                StringBuilder builder= new StringBuilder();
+//                this.shortContent(object.getJSONArray("ops"),builder,(ignore ->{}));
+//                bean.setQuote(builder.toString());
+//            }
             User user = new User();
-            log.info(String.valueOf(dto.getUid()));
             this.fillUserDetailByPrivacy(user,dto.getUid());
             bean.setUser(user);
             return bean;
