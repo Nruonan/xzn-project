@@ -7,6 +7,7 @@ import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
+import com.example.entity.dto.resp.CommentRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -104,5 +105,9 @@ public class ForumController {
                                      @RequestAttribute(Const.ATTR_USER_ID)int id){
         return utils.messageHandle(() ->
             topicService.addComment(id,requestParam));
+    }
+    @GetMapping("/comments")
+    public RestBean<List<CommentRespDTO>> comments(@RequestParam @Min(0) int tid,@RequestParam @Min(0) int page){
+        return RestBean.success(topicService.comments(tid, page+ 1));
     }
 }

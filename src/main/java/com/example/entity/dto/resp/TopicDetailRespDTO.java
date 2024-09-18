@@ -16,6 +16,7 @@ public class TopicDetailRespDTO {
    String content;
    Integer type;
    Date time;
+   Long comments;
    User user;
    Interact interact;
    @Data

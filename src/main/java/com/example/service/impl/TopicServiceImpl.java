@@ -4,11 +4,8 @@ import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
@@ -17,14 +14,14 @@ import com.example.entity.dao.AccountPrivacyDO;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicCommentDO;
 import com.example.entity.dao.TopicDO;
-import com.example.entity.dao.TopicTypeDO;
 import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
+import com.example.entity.dto.resp.CommentRespDTO;
+import com.example.entity.dto.resp.CommentRespDTO.User;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
-import com.example.entity.dto.resp.TopicDetailRespDTO.User;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
 import com.example.mapper.AccountDetailsMapper;
@@ -33,7 +30,6 @@ import com.example.mapper.AccountPrivacyMapper;
 import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
-import com.example.service.AccountPrivacyService;
 import com.example.service.TopicService;
 import com.example.utils.CacheUtils;
 import com.example.utils.Const;
@@ -47,15 +43,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Flow;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
@@ -217,6 +211,9 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         );
         topicDetailRespDTO.setInteract(interact);
         topicDetailRespDTO.setUser(this.fillUserDetailByPrivacy(user,topic.getUid()));
+        topicDetailRespDTO.setComments(topicCommentMapper.selectCount(Wrappers.<TopicCommentDO>query()
+            .eq("tid",tid)
+            .eq("root",-1)));
         return topicDetailRespDTO;
     }
 
@@ -309,6 +306,61 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         return null;
     }
 
+    @Override
+    public List<CommentRespDTO> comments(int tid, int pageNumber) {
+        Page<TopicCommentDO> page = Page.of(pageNumber,10);
+        LambdaQueryWrapper<TopicCommentDO> queryWrapper = Wrappers.lambdaQuery(TopicCommentDO.class)
+            .eq(TopicCommentDO::getTid, tid)
+            .eq(TopicCommentDO::getRoot,-1);
+        topicCommentMapper.selectPage(page, queryWrapper);
+        List<CommentRespDTO> comments= toCommentList(page.getRecords());
+
+        //查询所有根评论对应的子评论 并把子评论赋值给对应的属性
+        for (CommentRespDTO dto : comments){
+            List<CommentRespDTO> children = getChildren(dto.getId());
+            dto.setChildren(children);
+        }
+        return comments;
+    }
+    private List<CommentRespDTO> getChildren(int cid){
+        LambdaQueryWrapper<TopicCommentDO> queryWrapper = Wrappers.lambdaQuery(TopicCommentDO.class)
+            .eq(TopicCommentDO::getRoot,cid)
+            .orderByDesc(TopicCommentDO::getTime);
+        List<TopicCommentDO> list = topicCommentMapper.selectList(queryWrapper);
+        return toCommentList(list);
+    }
+    private List<CommentRespDTO> toCommentList(List<TopicCommentDO> list) {
+        return list.stream().map(dto -> {
+            CommentRespDTO bean = BeanUtil.toBean(dto, CommentRespDTO.class);
+            if (dto.getQuote() > 0){
+                JSONObject object = JSONObject.parseObject(
+                    topicCommentMapper.selectOne(
+                        Wrappers.lambdaQuery(TopicCommentDO.class).eq(TopicCommentDO::getId, bean.getId())).getContent()
+                );
+                StringBuilder builder= new StringBuilder();
+                this.shortContent(object.getJSONArray("ops"),builder,(ignore ->{}));
+                bean.setQuote(builder.toString());
+            }
+            User user = new User();
+            log.info(String.valueOf(dto.getUid()));
+            this.fillUserDetailByPrivacy(user,dto.getUid());
+            bean.setUser(user);
+            return bean;
+        }).toList();
+    }
+    private void shortContent(JSONArray ops, StringBuilder previewText, Consumer<Object> imageHandler){
+        for(Object op : ops){
+            Object insert = JSONObject.from(op).get("insert");
+            // 如果是String 就是普通句子用text存储
+            if (insert instanceof String text){
+                if (previewText.length() >= 300)continue;;
+                previewText.append(text);
+            }else if (insert instanceof Map<?,?> map){
+                // 图片则用list存储
+                Optional.ofNullable(map.get("image")).ifPresent(imageHandler);
+            }
+        }
+    }
     private <T> T fillUserDetailByPrivacy(T target, int uid){
         AccountDO accountDO = accountMapper.selectById(uid);
         AccountDetailsDO accountDetailsDO = accountDetailsMapper.selectById(uid);
@@ -335,17 +387,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         List<String> images = new ArrayList<>();
         StringBuilder previewText = new StringBuilder();
         JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
-        for(Object op : ops){
-            Object insert = JSONObject.from(op).get("insert");
-            // 如果是String 就是普通句子用text存储
-            if (insert instanceof String text){
-                if (previewText.length() >= 300)continue;;
-                previewText.append(text);
-            }else if (insert instanceof Map<?,?> map){
-                // 图片则用list存储
-                Optional.ofNullable(map.get("image")).ifPresent(obj -> images.add(obj.toString()));
-            }
-        }
+        this.shortContent(ops,previewText,obj->images.add(obj.toString()));
         bean.setText(previewText.length() > 300 ? previewText.substring(0, 300) :  previewText.toString());
         bean.setImages(images);
         return bean;
