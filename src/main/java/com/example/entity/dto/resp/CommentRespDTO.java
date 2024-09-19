@@ -20,6 +20,7 @@ public class CommentRespDTO {
     String quote;
     String root;
     User user;
+    String quoteName;
     //子评论
     private List<CommentRespDTO> children;
     @Data

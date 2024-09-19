@@ -325,22 +325,17 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     private List<CommentRespDTO> getChildren(int cid){
         LambdaQueryWrapper<TopicCommentDO> queryWrapper = Wrappers.lambdaQuery(TopicCommentDO.class)
             .eq(TopicCommentDO::getRoot,cid)
-            .orderByDesc(TopicCommentDO::getTime);
+            .orderByAsc(TopicCommentDO::getTime);
         List<TopicCommentDO> list = topicCommentMapper.selectList(queryWrapper);
         return toCommentList(list);
     }
     private List<CommentRespDTO> toCommentList(List<TopicCommentDO> list) {
         return list.stream().map(dto -> {
             CommentRespDTO bean = BeanUtil.toBean(dto, CommentRespDTO.class);
-//            if (dto.getQuote() > 0){
-//                JSONObject object = JSONObject.parseObject(
-//                    topicCommentMapper.selectOne(
-//                        Wrappers.lambdaQuery(TopicCommentDO.class).eq(TopicCommentDO::getId, bean.getId())).getContent()
-//                );
-//                StringBuilder builder= new StringBuilder();
-//                this.shortContent(object.getJSONArray("ops"),builder,(ignore ->{}));
-//                bean.setQuote(builder.toString());
-//            }
+            if (dto.getQuote() > 0){
+                AccountDO accountDO = accountMapper.selectById(dto.getQuote());
+                bean.setQuoteName(accountDO.getUsername());
+            }
             User user = new User();
             this.fillUserDetailByPrivacy(user,dto.getUid());
             bean.setUser(user);
