@@ -14,7 +14,6 @@ import lombok.NoArgsConstructor;
  * @description
  */
 @Data
-
 @TableName("da_account_privacy")
 public class AccountPrivacyDO {
     @TableId(type = IdType.AUTO)

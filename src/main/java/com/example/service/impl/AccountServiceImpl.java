@@ -13,6 +13,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
+import com.example.entity.dao.AccountDetailsDO;
+import com.example.entity.dao.AccountPrivacyDO;
 import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
@@ -20,7 +22,9 @@ import com.example.entity.dto.req.EmailResetReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
+import com.example.mapper.AccountPrivacyMapper;
 import com.example.service.AccountService;
 import com.example.utils.Const;
 import com.example.utils.FlowUtils;
@@ -49,6 +53,12 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
 
     @Resource
     AmqpTemplate amqpTemplate;
+
+    @Resource
+    AccountPrivacyMapper privacyMapper;
+
+    @Resource
+    AccountDetailsMapper detailsMapper;
 
     @Resource
     FlowUtils flowUtils;
@@ -112,11 +122,15 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
         String username = requestParam.getUsername();
         if(this.existsAccountByUsername(username)) return "该用户名已被他人使用，请重新更换";
         String password = passwordEncoder.encode(requestParam.getPassword());
-        AccountDO accountDO = new AccountDO(null,requestParam.getUsername(),password,email,Const.ROLE_DEFAULT,null,new Date());
+        AccountDO accountDO = new AccountDO(null,requestParam.getUsername(),password,null,email,Const.ROLE_DEFAULT,new Date());
         if(!this.save(accountDO)){
             return "内部错误，注册失败";
         }else{
             this.deleteEmailVerifyCode(email);
+            privacyMapper.insert(new AccountPrivacyDO(accountDO.getId()));
+            AccountDetailsDO accountDetailsDO = new AccountDetailsDO();
+            accountDetailsDO.setId(accountDO.getId());
+            detailsMapper.insert(accountDetailsDO);
             return null;
         }
     }
