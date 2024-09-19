@@ -307,6 +307,16 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
 
     @Override
+    public String deleteComment(int id, int cid) {
+        TopicCommentDO topicCommentDO = topicCommentMapper.selectById(cid);
+        if (!topicCommentDO.getUid().equals(id)){
+            return "删除评论错误，请联系管理员！";
+        }
+        topicCommentMapper.deleteById(cid);
+        return null;
+    }
+
+    @Override
     public List<CommentRespDTO> comments(int tid, int pageNumber) {
         Page<TopicCommentDO> page = Page.of(pageNumber,10);
         LambdaQueryWrapper<TopicCommentDO> queryWrapper = Wrappers.lambdaQuery(TopicCommentDO.class)

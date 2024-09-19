@@ -41,4 +41,6 @@ public interface TopicService  extends IService<TopicDO> {
     String addComment(int id, AddCommentReqDTO requestParam);
 
     List<CommentRespDTO> comments(int tid, int page);
+
+    String deleteComment(int id, int cid);
 }
