@@ -1,7 +1,9 @@
 package com.example.controller;
 
 import com.example.entity.RestBean;
+import com.example.entity.dto.resp.BrowserRespDTO;
 import com.example.service.ImageService;
+import com.example.utils.CommonUtils;
 import io.minio.errors.ErrorResponseException;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletOutputStream;
@@ -21,10 +23,19 @@ public class ObjectController {
     @Resource
     ImageService service;
 
+
+
     @GetMapping("/images/**")
     public void imageFetch(HttpServletRequest request, HttpServletResponse response) throws Exception {
         response.setHeader("Content-Type", "image/jpg");
         this.fetchImage(request, response);
+    }
+
+    @GetMapping("/api/common")
+    public RestBean<BrowserRespDTO> getBrowser(HttpServletRequest request){
+        String browser = CommonUtils.getBrowser((HttpServletRequest) request);
+        String ip = CommonUtils.getActualIp((HttpServletRequest) request);
+        return RestBean.success(new BrowserRespDTO(ip,browser));
     }
 
     private void fetchImage(HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -47,4 +58,5 @@ public class ObjectController {
             }
         }
     }
+
 }
