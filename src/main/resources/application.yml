@@ -9,7 +9,7 @@ spring:
     methods: '*'
    flow:
     period: 3
-    limit: 40
+    limit: 100
     block: 30
   mail:
     password: BEAGDULMBXDYOGGO

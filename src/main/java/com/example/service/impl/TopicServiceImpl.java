@@ -30,6 +30,7 @@ import com.example.mapper.AccountPrivacyMapper;
 import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
+import com.example.service.NotificationService;
 import com.example.service.TopicService;
 import com.example.utils.CacheUtils;
 import com.example.utils.Const;
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -84,6 +86,9 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     AccountPrivacyMapper accountPrivacyMapper;
+
+    @Resource
+    NotificationService notificationService;
 
     @Resource
     StringRedisTemplate stringRedisTemplate;
@@ -303,6 +308,19 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         bean.setUid(uid);
         bean.setTime(new Date());
         topicCommentMapper.insert(bean);
+        TopicDO topicDO = baseMapper.selectById(requestParam.getTid());
+        AccountDO accountDO = accountMapper.selectById(uid);
+        if (requestParam.getQuote() > 0){
+            if (!Objects.equals(accountDO.getId(),requestParam.getQuote())){
+                notificationService.addNotification(requestParam.getQuote(),"您有新的帖子评论回复",
+                    accountDO.getUsername() + "回复了你发表的评论，快去看看吧!",
+                    "success","/index/topic-detail/" + bean.getTid());
+            }
+        }else if(!Objects.equals(accountDO.getId(),topicDO.getUid())){
+            notificationService.addNotification(topicDO.getUid(),"您有新的帖子评论回复",
+                accountDO.getUsername() + "回复了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
+                "success","/index/topic-detail/" + bean.getTid());
+        }
         return null;
     }
 
