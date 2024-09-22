@@ -2,7 +2,7 @@
 
 #### 介绍
 校园社区后端
-
+第一阶段已完成，接下来还要实现第二阶段的跳蚤市场，管理端。
 #### 软件架构
 软件架构说明
 [前端网址](https://gitee.com/nruonan/xzn-project-frontend)
