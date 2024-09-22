@@ -24,9 +24,9 @@ public class TicketRespDTO {
     Integer validDateType;
     Date validDate;
     @Min(0)
-    Double price;
+    Float price;
     @Min(0)
-    Integer count;
+    Long count;
 
     Date createTime;
 

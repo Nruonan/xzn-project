@@ -1,25 +1,34 @@
 package com.example.service.impl;
 
+import cn.hutool.Hutool;
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.Snowflake;
+import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.RestBean;
 import com.example.entity.dao.TicketDO;
+import com.example.entity.dao.TicketOrderDO;
 import com.example.entity.dao.TicketTypeDO;
 import com.example.entity.dao.TopicDO;
+import com.example.entity.dto.req.TicketOrderRepeatReqDO;
+import com.example.entity.dto.req.TicketOrderReqDO;
 import com.example.entity.dto.resp.TicketCountRespDTO;
 import com.example.entity.dto.resp.TicketRespDTO;
 import com.example.entity.dto.resp.TicketTypeRespDTO;
 import com.example.mapper.TicketMapper;
+import com.example.mapper.TicketOrderMapper;
 import com.example.mapper.TicketTypeMapper;
 import com.example.service.TicketService;
 import com.example.utils.CacheUtils;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import kotlin.jvm.internal.Lambda;
 import org.redisson.Redisson;
@@ -43,6 +52,23 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
 
     @Resource
     TicketTypeMapper ticketTypeMapper;
+
+    @Resource
+    TicketOrderMapper ticketOrderMapper;
+
+    @Override
+    public TicketRespDTO findTicketById(int id) {
+        String key = Const.MARKET_TICKET_CACHE + ":" + id;
+        TicketRespDTO ticketRespDTO = cacheUtils.takeFromCache(key, TicketRespDTO.class);
+        if (ticketRespDTO != null)return ticketRespDTO;
+        TicketDO ticketDO = baseMapper.selectById(id);
+        if (ticketDO == null){
+            cacheUtils.saveToCache(key,new TicketRespDTO(),60);
+            return null;
+        }
+        cacheUtils.saveToCache(key,BeanUtil.toBean(ticketDO, TicketRespDTO.class),60);
+        return BeanUtil.toBean(ticketDO, TicketRespDTO.class);
+    }
 
     /**
      * @param name 优惠券名字
@@ -122,5 +148,58 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     public List<TicketTypeRespDTO> ticketTypeList() {
         List<TicketTypeDO> ticketTypeDOS = ticketTypeMapper.selectList(null);
         return BeanUtil.copyToList(ticketTypeDOS,TicketTypeRespDTO.class);
+    }
+
+    @Override
+    public String saveTicketOrder(TicketOrderReqDO requestParam, int uid) {
+        if (!requestParam.getUid().equals(uid) || this.findTicketById(requestParam.getTid()) == null){
+            return "购买优惠券错误，请联系管理员！";
+        }
+        TicketRespDTO ticket = this.findTicketById(requestParam.getTid());
+        if (ticket.getPrice() != requestParam.getPrice() / requestParam.getCount()){
+            return "支付金额出错，请联系管理员！";
+        }
+        String key = Const.MARKET_TICKET_PAY + ":" +requestParam.getId();
+        RLock lock = redissonClient.getLock(key);
+        if (!lock.tryLock()){
+            return "请进入购买界面，退出后重新进入";
+        }
+        try{
+            TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
+            ticketOrderDO.setTime(new Date());
+
+            boolean isSuccess = ticketOrderMapper.insertOrUpdate(ticketOrderDO);
+            ticket.setCount(ticket.getCount() - ticketOrderDO.getCount());
+            baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
+            // 删除旧缓存
+            cacheUtils.deleteCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId());
+            if (isSuccess){
+                return null;
+            }else {
+                return "请重新尝试购买";
+            }
+        }finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public String saveTicketOrderRepeat(TicketOrderRepeatReqDO requestParam) {
+        String key = Const.MARKET_TICKET_PAY + ":" +requestParam.getId();
+        RLock lock = redissonClient.getLock(key);
+        if (!lock.tryLock()){
+            return "请进入购买界面，退出后重新进入";
+        }
+        try{
+            TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
+            int isSuccess = ticketOrderMapper.updateById(ticketOrderDO);
+            if (isSuccess > 0){
+                return null;
+            }else {
+                return "请重新尝试购买";
+            }
+        }finally {
+            lock.unlock();
+        }
     }
 }
