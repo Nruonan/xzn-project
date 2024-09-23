@@ -170,7 +170,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             ticket.setCount(ticket.getCount() - ticketOrderDO.getCount());
             baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
             // 删除旧缓存
-            cacheUtils.deleteCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId());
+            cacheUtils.saveToCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId(),BeanUtil.toBean(ticket,TicketRespDTO.class),60);
             rabbitTemplate.convertAndSend("X", "XC", Const.MARKET_TICKET_PAY , correlationData ->{
                 correlationData.getMessageProperties().setExpiration("901000");
                 correlationData.getMessageProperties().setMessageId(requestParam.getId().toString());
