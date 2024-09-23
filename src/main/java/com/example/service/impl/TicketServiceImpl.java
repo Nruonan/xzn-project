@@ -1,23 +1,18 @@
 package com.example.service.impl;
 
-import cn.hutool.Hutool;
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.lang.Snowflake;
-import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.example.entity.RestBean;
 import com.example.entity.dao.TicketDO;
 import com.example.entity.dao.TicketOrderDO;
 import com.example.entity.dao.TicketTypeDO;
-import com.example.entity.dao.TopicDO;
+import com.example.entity.dto.req.RemoveTicketOrderReqDTO;
 import com.example.entity.dto.req.TicketOrderRepeatReqDO;
 import com.example.entity.dto.req.TicketOrderReqDO;
 import com.example.entity.dto.resp.TicketCountRespDTO;
+import com.example.entity.dto.resp.TicketOrderRespDTO;
 import com.example.entity.dto.resp.TicketRespDTO;
 import com.example.entity.dto.resp.TicketTypeRespDTO;
 import com.example.mapper.TicketMapper;
@@ -30,11 +25,10 @@ import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import kotlin.jvm.internal.Lambda;
-import org.redisson.Redisson;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -42,8 +36,11 @@ import org.springframework.stereotype.Service;
  * @description
  */
 @Service
+@Slf4j
 public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> implements TicketService {
 
+    @Resource
+    RabbitTemplate rabbitTemplate;
     @Resource
     CacheUtils cacheUtils;
 
@@ -165,6 +162,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             return "请进入购买界面，退出后重新进入";
         }
         try{
+            ticket = this.findTicketById(requestParam.getTid());
             TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
             ticketOrderDO.setTime(new Date());
 
@@ -173,6 +171,12 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
             // 删除旧缓存
             cacheUtils.deleteCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId());
+            rabbitTemplate.convertAndSend("X", "XC", Const.MARKET_TICKET_PAY , correlationData ->{
+                correlationData.getMessageProperties().setExpiration("901000");
+                correlationData.getMessageProperties().setMessageId(requestParam.getId().toString());
+                return correlationData;
+            });
+            log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),"901000", requestParam.getId());
             if (isSuccess){
                 return null;
             }else {
@@ -201,5 +205,26 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
         }finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public List<TicketOrderRespDTO> getTicketOrdersById(int id, int uid) {
+        if (id != uid){
+            return null;
+        }
+
+        return ticketOrderMapper.selectOrdersList(uid);
+    }
+
+    @Override
+    public String removeTicketOrder(int id, RemoveTicketOrderReqDTO requestParam) {
+        if (id != requestParam.getUid()){
+            return "删除订单错误，请联系管理员！";
+        }
+        int i = ticketOrderMapper.deleteById(requestParam.getId());
+        if (i > 0){
+            return null;
+        }
+        return "删除订单错误，请联系管理员！";
     }
 }
