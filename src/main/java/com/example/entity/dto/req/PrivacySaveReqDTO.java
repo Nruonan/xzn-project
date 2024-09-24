@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PrivacySaveReqDTO {
-    @Pattern(regexp = "(phone|email|qq|wx|gender)")
+    @Pattern(regexp = "(phone|email|qq|wx|gender|remind)")
     String type;
     boolean status;
 ;}

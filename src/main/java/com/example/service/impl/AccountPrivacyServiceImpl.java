@@ -33,6 +33,7 @@ public class AccountPrivacyServiceImpl extends ServiceImpl<AccountPrivacyMapper,
             case "wx" -> privacy.setWx(status);
             case "gender" -> privacy.setGender(status);
             case "email" -> privacy.setEmail(status);
+            case "remind" -> privacy.setRemind(status);
         }
         this.saveOrUpdate(privacy);
     }

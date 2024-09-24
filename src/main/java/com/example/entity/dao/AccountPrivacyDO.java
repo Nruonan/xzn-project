@@ -23,7 +23,7 @@ public class AccountPrivacyDO {
     boolean wx = true;
     boolean qq = true;
     boolean gender = true;
-
+    boolean remind = false;
 
     public String[] hiddenFields(){
         LinkedList<String> strings = new LinkedList<>();

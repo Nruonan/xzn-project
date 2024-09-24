@@ -33,6 +33,13 @@ public class RabbitConfiguration {
             .build();
     }
 
+    @Bean("notificationQueue")
+    public Queue nQueue(){
+        return QueueBuilder
+            .durable("notification")
+            .build();
+    }
+
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);

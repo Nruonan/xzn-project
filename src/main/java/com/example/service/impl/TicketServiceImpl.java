@@ -72,8 +72,6 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     @Resource
     AccountMapper accountMapper;
 
-    @Resource
-    NotificationService notificationService;
 
     @Override
     public TicketRespDTO findTicketById(int id) {
@@ -121,28 +119,34 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
 
         TicketDO bean = BeanUtil.toBean(requestParam, TicketDO.class);
         bean.setCreateTime(new Date());
-        Date validDate = requestParam.getValidDate();
-        // 将 Date 转换为 LocalDateTime
-        LocalDateTime localDateTime = validDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-        // 将时间倒退8个小时
-        LocalDateTime newLocalDateTime = localDateTime.minusHours(8);
-        // 将 LocalDateTime 转换回 Date
-        Date newValidDate = Date.from(newLocalDateTime.atZone(ZoneId.systemDefault()).toInstant());
-        // 设置新的时间
-        bean.setValidDate(newValidDate);
+        Date newValidDate;
+        if (requestParam.getValidDate() != null){
+            Date validDate = requestParam.getValidDate();
+            // 将 Date 转换为 LocalDateTime
+            LocalDateTime localDateTime = validDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            // 将时间倒退8个小时
+            LocalDateTime newLocalDateTime = localDateTime.minusHours(8);
+            // 将 LocalDateTime 转换回 Date
+            newValidDate = Date.from(newLocalDateTime.atZone(ZoneId.systemDefault()).toInstant());
+            // 设置新的时间
+            bean.setValidDate(newValidDate);
+        } else {
+            newValidDate = null;
+        }
         baseMapper.insert(bean);
-        // 发送延时队列
-        rabbitTemplate.convertAndSend("ticket_exchange", "add_ticket_exchange", bean.getId(), correlationData->{
-            long expirationTime = newValidDate.getTime() - new Date().getTime();
-            if (expirationTime > 0) {
-                correlationData.getMessageProperties().setExpiration(String.valueOf(expirationTime));
-            }
-            return correlationData;
-        });
-        log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),newValidDate.getTime() - new Date().getTime(), bean.getId());
+        if (requestParam.getValidDate() != null && requestParam.getValidDateType() == 0){
+            // 发送延时队列
+            rabbitTemplate.convertAndSend("ticket_exchange", "add_ticket_exchange", bean.getId(), correlationData->{
+                long expirationTime = newValidDate.getTime() - new Date().getTime();
+                if (expirationTime > 0) {
+                    correlationData.getMessageProperties().setExpiration(String.valueOf(expirationTime));
+                }
+                return correlationData;
+            });
+            log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),newValidDate.getTime() - new Date().getTime(), bean.getId());
+        }
 
-        // 提醒大家可以有新的优惠券
-        notificationService.addNotification();
+        rabbitTemplate.convertAndSend("notification",JSONObject.toJSONString(bean));
         // 存入布隆过滤器
         ticketBloomFilter.add(String.valueOf(bean.getId()));
         return null;
