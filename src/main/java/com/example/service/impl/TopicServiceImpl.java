@@ -52,8 +52,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.K;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -95,6 +97,10 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     TopicCommentMapper topicCommentMapper;
+
+    @Resource
+    RabbitTemplate rabbitTemplate;
+
     private Set<Integer> types = null;
     @PostConstruct
     private void initTypes() {
@@ -308,19 +314,11 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         bean.setUid(uid);
         bean.setTime(new Date());
         topicCommentMapper.insert(bean);
-        TopicDO topicDO = baseMapper.selectById(requestParam.getTid());
-        AccountDO accountDO = accountMapper.selectById(uid);
-        if (requestParam.getQuote() > 0){
-            if (!Objects.equals(accountDO.getId(),requestParam.getQuote())){
-                notificationService.addNotification(requestParam.getQuote(),"您有新的帖子评论回复",
-                    accountDO.getUsername() + "回复了你发表的评论，快去看看吧!",
-                    "success","/index/topic-detail/" + bean.getTid());
-            }
-        }else if(!Objects.equals(accountDO.getId(),topicDO.getUid())){
-            notificationService.addNotification(topicDO.getUid(),"您有新的帖子评论回复",
-                accountDO.getUsername() + "回复了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
-                "success","/index/topic-detail/" + bean.getTid());
-        }
+        HashMap<String, String> hashMap = new HashMap<>();
+        hashMap.put("req",  JSONObject.toJSONString(requestParam));
+        hashMap.put("bean",JSONObject.toJSONString(bean));
+        // 利用消息队列发送
+        rabbitTemplate.convertAndSend("notificationComment",hashMap);
         return null;
     }
 

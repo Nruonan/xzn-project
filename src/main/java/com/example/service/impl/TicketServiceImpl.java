@@ -146,7 +146,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),newValidDate.getTime() - new Date().getTime(), bean.getId());
         }
 
-        rabbitTemplate.convertAndSend("notification",JSONObject.toJSONString(bean));
+        rabbitTemplate.convertAndSend("notificationTicket",JSONObject.toJSONString(bean));
         // 存入布隆过滤器
         ticketBloomFilter.add(String.valueOf(bean.getId()));
         return null;
