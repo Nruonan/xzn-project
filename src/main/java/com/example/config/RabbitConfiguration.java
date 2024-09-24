@@ -33,17 +33,17 @@ public class RabbitConfiguration {
             .build();
     }
 
-    @Bean("notificationTickerQueue")
+    @Bean("notificationTicketQueue")
     public Queue nQueue(){
         return QueueBuilder
-            .durable("notificationTicker")
+            .durable("notificationTicket")
             .build();
     }
 
     @Bean("notificationCommentQueue")
     public Queue cQueue(){
         return QueueBuilder
-            .durable("notificationOrder")
+            .durable("notificationComment")
             .build();
     }
     @Bean
