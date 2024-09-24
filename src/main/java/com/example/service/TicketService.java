@@ -5,6 +5,7 @@ import com.example.entity.dao.TicketDO;
 import com.example.entity.dto.req.RemoveTicketOrderReqDTO;
 import com.example.entity.dto.req.TicketOrderRepeatReqDO;
 import com.example.entity.dto.req.TicketOrderReqDO;
+import com.example.entity.dto.req.addTicketReqDTO;
 import com.example.entity.dto.resp.TicketCountRespDTO;
 import com.example.entity.dto.resp.TicketOrderRespDTO;
 import com.example.entity.dto.resp.TicketRespDTO;
@@ -29,4 +30,6 @@ public interface TicketService extends IService<TicketDO> {
 
 
     String removeTicketOrder(int id, RemoveTicketOrderReqDTO requestParam);
+
+    String addTicket(addTicketReqDTO requestParam, int id);
 }

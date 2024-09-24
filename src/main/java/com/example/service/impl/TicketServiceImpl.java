@@ -1,35 +1,48 @@
 package com.example.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.controller.exception.ClientException;
+import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.TicketDO;
 import com.example.entity.dao.TicketOrderDO;
 import com.example.entity.dao.TicketTypeDO;
 import com.example.entity.dto.req.RemoveTicketOrderReqDTO;
 import com.example.entity.dto.req.TicketOrderRepeatReqDO;
 import com.example.entity.dto.req.TicketOrderReqDO;
+import com.example.entity.dto.req.addTicketReqDTO;
 import com.example.entity.dto.resp.TicketCountRespDTO;
 import com.example.entity.dto.resp.TicketOrderRespDTO;
 import com.example.entity.dto.resp.TicketRespDTO;
 import com.example.entity.dto.resp.TicketTypeRespDTO;
+import com.example.mapper.AccountMapper;
 import com.example.mapper.TicketMapper;
 import com.example.mapper.TicketOrderMapper;
 import com.example.mapper.TicketTypeMapper;
+import com.example.service.NotificationService;
 import com.example.service.TicketService;
 import com.example.utils.CacheUtils;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @author Nruonan
@@ -53,18 +66,86 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     @Resource
     TicketOrderMapper ticketOrderMapper;
 
+    @Resource
+    RBloomFilter<String> ticketBloomFilter;
+
+    @Resource
+    AccountMapper accountMapper;
+
+    @Resource
+    NotificationService notificationService;
+
     @Override
     public TicketRespDTO findTicketById(int id) {
         String key = Const.MARKET_TICKET_CACHE + ":" + id;
         TicketRespDTO ticketRespDTO = cacheUtils.takeFromCache(key, TicketRespDTO.class);
+        TicketDO ticketDO = null;
         if (ticketRespDTO != null)return ticketRespDTO;
-        TicketDO ticketDO = baseMapper.selectById(id);
-        if (ticketDO == null){
-            cacheUtils.saveToCache(key,new TicketRespDTO(),60);
-            return null;
+        if (!ticketBloomFilter.contains(String.valueOf(id))){
+            throw new ClientException("神券不存在");
         }
-        cacheUtils.saveToCache(key,BeanUtil.toBean(ticketDO, TicketRespDTO.class),60);
+        RLock lock = redissonClient.getLock("lock:" + key);
+        if (!lock.tryLock()){
+            throw new ClientException("正在获取神券中...");
+        }
+        try{
+            ticketDO = baseMapper.selectById(id);
+            if (Objects.isNull(ticketDO)){
+                cacheUtils.saveToCache(key,new TicketRespDTO(),60);
+                throw new ClientException("神券不存在或已过期！");
+            }
+            cacheUtils.saveToCache(key, BeanUtil.toBean(ticketDO, TicketRespDTO.class),60);
+        }finally {
+            lock.unlock();
+        }
+
         return BeanUtil.toBean(ticketDO, TicketRespDTO.class);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String addTicket(addTicketReqDTO requestParam, int id) {
+        AccountDO accountDO = accountMapper.selectById(id);
+        if (!"admin".equals(accountDO.getRole())) {
+            return "非管理员无法添加神券！";
+        }
+        if ((requestParam.getValidDateType() == 1  && requestParam.getValidDate() != null) || (requestParam.getValidDateType() == 0  && requestParam.getValidDate() == null)) {
+            return "参数有误,请重新输入";
+        }
+        if (requestParam.getValidDate() != null && requestParam.getValidDate().before(new Date())) {
+            return "参数有误,请重新输入";
+        }
+        if (requestParam.getType() == 1 || requestParam.getType() == 3){
+            if (requestParam.getPrice() != 0) return "参数有误,请重新输入";
+        }
+
+        TicketDO bean = BeanUtil.toBean(requestParam, TicketDO.class);
+        bean.setCreateTime(new Date());
+        Date validDate = requestParam.getValidDate();
+        // 将 Date 转换为 LocalDateTime
+        LocalDateTime localDateTime = validDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        // 将时间倒退8个小时
+        LocalDateTime newLocalDateTime = localDateTime.minusHours(8);
+        // 将 LocalDateTime 转换回 Date
+        Date newValidDate = Date.from(newLocalDateTime.atZone(ZoneId.systemDefault()).toInstant());
+        // 设置新的时间
+        bean.setValidDate(newValidDate);
+        baseMapper.insert(bean);
+        // 发送延时队列
+        rabbitTemplate.convertAndSend("ticket_exchange", "add_ticket_exchange", bean.getId(), correlationData->{
+            long expirationTime = newValidDate.getTime() - new Date().getTime();
+            if (expirationTime > 0) {
+                correlationData.getMessageProperties().setExpiration(String.valueOf(expirationTime));
+            }
+            return correlationData;
+        });
+        log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),newValidDate.getTime() - new Date().getTime(), bean.getId());
+
+        // 提醒大家可以有新的优惠券
+        notificationService.addNotification();
+        // 存入布隆过滤器
+        ticketBloomFilter.add(String.valueOf(bean.getId()));
+        return null;
     }
 
     /**
@@ -148,11 +229,15 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String saveTicketOrder(TicketOrderReqDO requestParam, int uid) {
         if (!requestParam.getUid().equals(uid) || this.findTicketById(requestParam.getTid()) == null){
             return "购买优惠券错误，请联系管理员！";
         }
         TicketRespDTO ticket = this.findTicketById(requestParam.getTid());
+        if (ticket.getValidDateType() ==0 && ticket.getValidDate().before(new Date())){
+            return "不满足神券购买时间";
+        }
         if (ticket.getPrice() != requestParam.getPrice() / requestParam.getCount()){
             return "支付金额出错，请联系管理员！";
         }
@@ -163,19 +248,20 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
         }
         try{
             ticket = this.findTicketById(requestParam.getTid());
+            if (ticket.getCount() <= 0 || requestParam.getCount() > ticket.getCount()) {
+                return "神券已被购清，请下次参与活动";
+            }
+
             TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
             ticketOrderDO.setTime(new Date());
 
             boolean isSuccess = ticketOrderMapper.insertOrUpdate(ticketOrderDO);
+
             ticket.setCount(ticket.getCount() - ticketOrderDO.getCount());
             baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
             // 删除旧缓存
             cacheUtils.saveToCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId(),BeanUtil.toBean(ticket,TicketRespDTO.class),60);
-            rabbitTemplate.convertAndSend("X", "XC", Const.MARKET_TICKET_PAY , correlationData ->{
-                correlationData.getMessageProperties().setExpiration("901000");
-                correlationData.getMessageProperties().setMessageId(requestParam.getId().toString());
-                return correlationData;
-            });
+            rabbitTemplate.convertAndSend("ticket_exchange", "save_order_exchange",requestParam.getId());
             log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),"901000", requestParam.getId());
             if (isSuccess){
                 return null;
