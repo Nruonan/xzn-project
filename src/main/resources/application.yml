@@ -27,8 +27,8 @@ spring:
         retry:
           enabled: true #是否开启消费者重试
           max-attempts: 3 #最大重试次数
-          initial-interval: 5000ms #重试间隔时间（单位毫秒）
-          max-interval: 1200000ms #重试最大时间间隔（单位毫秒）
+          initial-interval: 4000ms #重试间隔时间（单位毫秒）
+          max-interval: 12000ms #重试最大时间间隔（单位毫秒）
           multiplier: 2 #间隔时间乘子，间隔时间*乘子=下一次的间隔时间，最大不能超过设置的最大间隔时间
   data:
     redis:

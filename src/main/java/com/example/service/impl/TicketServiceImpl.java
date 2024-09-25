@@ -1,8 +1,10 @@
 package com.example.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.IdUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -242,31 +244,41 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
         if (ticket.getValidDateType() ==0 && ticket.getValidDate().before(new Date())){
             return "不满足神券购买时间";
         }
+        if (ticket.getCount() <= 0 || requestParam.getCount() > ticket.getCount()) {
+            return "神券已被购清，请下次参与活动";
+        }
         if (ticket.getPrice() != requestParam.getPrice() / requestParam.getCount()){
             return "支付金额出错，请联系管理员！";
         }
-        String key = Const.MARKET_TICKET_PAY + ":" +requestParam.getId();
+        // 对优惠券上锁
+        String key = Const.MARKET_TICKET_PAY + ":" +requestParam.getTid();
         RLock lock = redissonClient.getLock(key);
         if (!lock.tryLock()){
             return "请进入购买界面，退出后重新进入";
         }
         try{
+            // 判断库存是否充足
             ticket = this.findTicketById(requestParam.getTid());
             if (ticket.getCount() <= 0 || requestParam.getCount() > ticket.getCount()) {
                 return "神券已被购清，请下次参与活动";
             }
-
+            // 设置订单时间
             TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
             ticketOrderDO.setTime(new Date());
-
+            ticketOrderDO.setId(IdUtil.getSnowflakeNextId());
+            // 添加订单
             boolean isSuccess = ticketOrderMapper.insertOrUpdate(ticketOrderDO);
-
+            // 修改库存数
             ticket.setCount(ticket.getCount() - ticketOrderDO.getCount());
             baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
-            // 删除旧缓存
-            cacheUtils.saveToCache(Const.MARKET_TICKET_CACHE + ":" + ticket.getId(),BeanUtil.toBean(ticket,TicketRespDTO.class),60);
-            rabbitTemplate.convertAndSend("ticket_exchange", "save_order_exchange",requestParam.getId());
-            log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),"901000", requestParam.getId());
+            // 删除缓存
+            rabbitTemplate.convertAndSend("delete_ticket_count_queue",ticket.getId());
+            if (!requestParam.getPay()){
+                // 延时删除未下单的订单
+                rabbitTemplate.convertAndSend("ticket_exchange", "save_order_exchange",ticketOrderDO.getId());
+                log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),"901000", ticketOrderDO.getId());
+            }
+
             if (isSuccess){
                 return null;
             }else {
@@ -285,8 +297,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             return "请进入购买界面，退出后重新进入";
         }
         try{
-            TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
-            int isSuccess = ticketOrderMapper.updateById(ticketOrderDO);
+            LambdaUpdateWrapper<TicketOrderDO> set = Wrappers.lambdaUpdate(TicketOrderDO.class)
+                .eq(TicketOrderDO::getId, requestParam.getId())
+                .set(TicketOrderDO::getPay, requestParam.getPay());
+            int isSuccess = ticketOrderMapper.update(set);
             if (isSuccess > 0){
                 return null;
             }else {

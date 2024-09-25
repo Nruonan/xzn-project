@@ -13,7 +13,6 @@ import org.hibernate.validator.constraints.Length;
 @Data
 @AllArgsConstructor
 public class TicketOrderReqDO {
-    Long id;
     @Min(1)
     Integer uid;
     @Min(1)
@@ -22,6 +21,5 @@ public class TicketOrderReqDO {
     Long count;
     @Min(0)
     float price;
-    Date time;
     Boolean pay;
 }

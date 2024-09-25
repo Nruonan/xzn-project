@@ -10,7 +10,7 @@ import lombok.Data;
  */
 @Data
 public class TicketOrderRespDTO {
-    Long id;
+    String id;
     Integer tid;
     String name;
     String desc;

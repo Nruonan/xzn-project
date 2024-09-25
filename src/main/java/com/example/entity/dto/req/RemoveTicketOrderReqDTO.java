@@ -3,6 +3,7 @@ package com.example.entity.dto.req;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.hibernate.validator.constraints.Length;
 
 /**
  * @author Nruonan
@@ -13,6 +14,6 @@ import lombok.Data;
 public class RemoveTicketOrderReqDTO {
     @Min(1)
     int uid;
-    @Min(1)
+    @Length(min = 9)
     Long id;
 }

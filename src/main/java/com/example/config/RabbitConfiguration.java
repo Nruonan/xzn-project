@@ -46,6 +46,13 @@ public class RabbitConfiguration {
             .durable("notificationComment")
             .build();
     }
+
+    @Bean("ticket_count_queue")
+    public Queue ticketQueue(){
+        return QueueBuilder
+            .durable("delete_ticket_count_queue")
+            .build();
+    }
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
