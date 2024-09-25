@@ -2,14 +2,17 @@ package com.example.controller;
 
 
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
+
+
+import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
-
-
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
 import com.example.entity.dao.NewDO;
+import com.example.utils.CacheUtils;
 import com.example.utils.Const;
+import io.swagger.v3.core.util.Json;
 import jakarta.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -20,10 +23,18 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.json.JsonParser;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,82 +45,68 @@ import org.springframework.web.bind.annotation.RestController;
  * @description
  */
 @RestController()
+@Slf4j
 @RequestMapping("/api")
 public class NewController {
-    @Value("${spring.new.url}")
-    private String apiUrl;
-
-    @Value("${spring.new.key}")
-    private String key;
     @Resource
-    StringRedisTemplate stringRedisTemplate;
+    private CacheUtils cacheUtils;
+
+    final String[] urlNames = new String[]{"https://tenapi.cn/v2/baiduhot","https://tenapi.cn/v2/douyinhot","https://tenapi.cn/v2/weibohot",
+    "https://tenapi.cn/v2/zhihuhot","https://tenapi.cn/v2/bilihot","https://tenapi.cn/v2/toutiaohot"};
 
     @GetMapping("/new")
-    public RestBean< ArrayList<NewDO>> getNewList() throws IOException {
-        ArrayList<NewDO> list = new ArrayList<>();
-        // 从 Redis 获取数据，如果存在则直接返回
-        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(Const.FORUM_NEW_CACHE))) {
-            String cachedData = stringRedisTemplate.opsForValue().get(Const.FORUM_NEW_CACHE);
-            System.out.println(cachedData);
-            // 将 Redis 中的 JSON 字符串转换为 ArrayList<NewDO>
-            JSONArray cachedArray = JSONUtil.parseArray(cachedData);
-            for (int i = 0; i < cachedArray.size(); i++) {
-                JSONObject newJson = cachedArray.getJSONObject(i);
-                list.add(new NewDO(newJson.getStr("title"), newJson.getStr("url")));
-            }
-            return RestBean.success(list);
+    public RestBean<List<List<NewDO>>> anew() throws Exception {
+        List<List<NewDO>> list = new ArrayList<>();
+        for (String urlName : urlNames){
+            list.add(fetchHot(urlName));
         }
-
-        HashMap<String, String> map = new HashMap<>();
-        map.put("key", key);
-        map.put("type", "top");
-        map.put("page", "1");
-        map.put("page_size", "10");
-        map.put("is_filter", "1");
-
-        URL url = new URL(String.format(apiUrl + "?" + params(map)));
-        // 打开连接
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("Content-Type", "application/json");
-
-        // 获取响应
-        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        String inputLine;
-        StringBuffer response = new StringBuffer();
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-
-
-        // 使用 Gson 解析 JSON 响应
-        JSONObject jsonObject = JSONUtil.parseObj(response.toString());
-        JSONArray newJsonArray = jsonObject.getJSONObject("result").getJSONArray("data");
-
-
-        for(int i = 0; i < newJsonArray.size(); i++){
-            JSONObject newJson = newJsonArray.getJSONObject(i);
-
-            list.add(new NewDO(newJson.getStr("title"),newJson.getStr("url")));
-
-        }
-        // 将数据存入 Redis，并设置过期时间（例如 1 小时）
-        // 将 List 转换为 JSON 字符串并存入 Redis
-        stringRedisTemplate.opsForValue().set(Const.FORUM_NEW_CACHE, JSONUtil.toJsonStr(newJsonArray), 4, TimeUnit.HOURS);
         return RestBean.success(list);
     }
 
-    public static String params(Map<String, String> map) {
-        return map.entrySet().stream()
-            .map(entry -> {
-                try {
-                    return entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return entry.getKey() + "=" + entry.getValue();
-                }
-            })
-            .collect(Collectors.joining("&"));
+
+
+
+    public  List<NewDO> fetchHot(String urlName) throws Exception {
+
+        String com = urlName.substring(21,urlName.length() - 3);
+        List<NewDO> newDOs = cacheUtils.takeListFormCache(Const.FORUM_HOT_CACHE + com, NewDO.class);
+        if (newDOs != null)return newDOs;
+        URL url = new URL(urlName);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3");
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            newDOs = parseResponse(response.toString(), com);
+        } else {
+            log.info("获取热榜数据出错，请搜索ten-api解决问题!");
+        }
+        conn.disconnect();
+        return newDOs;
     }
+
+    public  List<NewDO> parseResponse(String response,String title) {
+        JSONObject jsonObject = JSONObject.parseObject(response);
+        List<NewDO> list = new ArrayList<>();
+        JSONArray hotList = jsonObject.getJSONArray("data");
+        for (int i = 0; i < Math.min(hotList.size(), 15); i++) {
+            JSONObject item = hotList.getJSONObject(i);
+            String name = item.getString("name");
+            String url = item.getString("url");
+            list.add(new NewDO(name,url));
+        }
+        cacheUtils.saveListToCache(Const.FORUM_HOT_CACHE + title, list,10800);
+        return list;
+    }
+
+
 }

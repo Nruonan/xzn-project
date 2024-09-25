@@ -24,7 +24,7 @@ public class Const {
 
     public static final String FORUM_WEATHER_CACHE = "xzn:weather:cache:";
     public static final String FORUM_IMAGE_CACHE = "xzn:image:cache:";
-    public static final String FORUM_NEW_CACHE = "xzn:new:cache:";
+    public static final String FORUM_HOT_CACHE = "xzn:hot:cache:";
     public static final String FORUM_TOPIC_CREATE_COUNTER = "xzn:topic:create";
 
     public static final String FORUM_TOPIC_PREVIEW_CACHE = "xzn:topic:preview";
