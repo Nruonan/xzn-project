@@ -32,4 +32,5 @@ public class Const {
     public static final String FORUM_TOPIC_COMMENT_COUNTER = "xzn:topic:comment";
     public static final String MARKET_TICKET_CACHE = "xzn:market:ticket";
     public static final String MARKET_TICKET_PAY = "xzn:market:pay";
+    public static final String FOLLOW_CACHE = "xzn:follow:";
 }

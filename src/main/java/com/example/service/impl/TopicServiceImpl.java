@@ -168,35 +168,23 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         // 从缓存中获取数据
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
-        RLock lock = redissonClient.getLock(lockKey);
         Page<TopicDO> page = new Page<>(pageNumber , 10);
-        try{
-            if (!lock.tryLock()){
-                // 再次检查缓存是否已经被其他线程更新
-                list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
-                if (list != null) {
-                    return list;
-                }
-            }
-            if (type == 0){
-                baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class).orderByDesc(TopicDO::getTime));
-            }else{
-                baseMapper.selectPage(page,Wrappers.lambdaQuery(TopicDO.class).eq(TopicDO::getType,type).orderByDesc(TopicDO::getTime));
-            }
 
-            List<TopicDO> topics = page.getRecords();
-            if (topics.isEmpty()) {
-                // 将空值也存入缓存，避免缓存穿透
-                cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
-                return new ArrayList<>();
-            }
-            list = topics.stream().map(this::resolveToPreview).toList();
-            cacheUtils.saveListToCache(key , list, 60);
-        }catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            lock.unlock();  // 释放锁
+        if (type == 0){
+            baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class).orderByDesc(TopicDO::getTime));
+        }else{
+            baseMapper.selectPage(page,Wrappers.lambdaQuery(TopicDO.class).eq(TopicDO::getType,type).orderByDesc(TopicDO::getTime));
         }
+
+        List<TopicDO> topics = page.getRecords();
+        if (topics.isEmpty()) {
+            // 将空值也存入缓存，避免缓存穿透
+            cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
+            return new ArrayList<>();
+        }
+        list = topics.stream().map(this::resolveToPreview).toList();
+        cacheUtils.saveListToCache(key , list, 60);
+
         return list;
     }
 
