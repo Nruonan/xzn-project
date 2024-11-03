@@ -22,5 +22,6 @@ public class FollowDO {
     Integer id;
     Integer uid;
     Integer fid;
+    Integer status;
     Date time;
 }

@@ -11,7 +11,7 @@ import java.util.List;
  */
 public interface FollowService extends IService<FollowDO> {
 
-    String followById(int id, boolean type, int uid);
+    String followById(int id, int uid);
 
     boolean isFollow(int id, int uid);
 

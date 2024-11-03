@@ -5,6 +5,8 @@ import static com.example.utils.Const.FOLLOW_CACHE;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.FollowDO;
 import com.example.mapper.FollowMapper;
@@ -33,7 +35,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
     @Override
     public boolean isFollow(int id, int uid) {
         Long count = query().eq("uid", uid)
-            .eq("fid", id).count();
+            .eq("fid", id).eq("status",1).count();
         //只想知道有没有，所以用count(*)即可
         return count > 0;
     }
@@ -41,33 +43,49 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
 
     @Override
     @Transactional
-    public String followById(int id, boolean isFollow, int uid) {
+    public String followById(int id,int uid) {
         if (id == uid)return "关注错误，关注用户为当前用户！";
         String key = FOLLOW_CACHE + uid;
-        if (!isFollow){
-            FollowDO followDO = new FollowDO();
+        LambdaQueryWrapper<FollowDO> eq = new LambdaQueryWrapper<>(FollowDO.class)
+            .eq(FollowDO::getUid, uid)
+            .eq(FollowDO::getFid,id);
+        FollowDO followDO = baseMapper.selectOne(eq);
+        if (followDO == null){
+            followDO = new FollowDO();
             followDO.setFid(id);
             followDO.setUid(uid);
+            followDO.setStatus(1);
             followDO.setTime(new Date());
-            if(save(followDO)){
+            boolean isSuccess = save(followDO);
+            if (isSuccess){
                 stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
-                return null;
             }
+            return null;
         }else {
-            boolean isSuccess = remove(new QueryWrapper<FollowDO>()
-                .eq("uid", uid).eq("fid", id));
-            if (isSuccess) {
-                // 把关注用户的id从Redis集合中移除
+            if (followDO.getStatus() == 1) {
+                LambdaUpdateWrapper<FollowDO> updateWrapper = new LambdaUpdateWrapper<>(FollowDO.class)
+                    .eq(FollowDO::getUid, uid)
+                    .eq(FollowDO::getFid,id)
+                    .set(FollowDO::getStatus,0);
+                update(updateWrapper);
                 stringRedisTemplate.opsForSet().remove(key, String.valueOf(id));
+            } else {
+                LambdaUpdateWrapper<FollowDO> updateWrapper = new LambdaUpdateWrapper<>(FollowDO.class)
+                    .eq(FollowDO::getUid, uid)
+                    .eq(FollowDO::getFid,id)
+                    .set(FollowDO::getStatus,1);
+                update(updateWrapper);
+                stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
             }
         }
+
         return null;
     }
 
     @Override
     public List<Integer> followList(int uid) {
         LambdaQueryWrapper<FollowDO> eq = new LambdaQueryWrapper<>(FollowDO.class)
-            .eq(FollowDO::getUid, uid);
+            .eq(FollowDO::getUid, uid).eq(FollowDO::getStatus,1);
         List<FollowDO> followDOS = baseMapper.selectList(eq);
         List<Integer> collect = followDOS.stream()
             .map(FollowDO::getFid)

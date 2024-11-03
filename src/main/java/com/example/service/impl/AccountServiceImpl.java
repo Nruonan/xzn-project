@@ -15,6 +15,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
+import com.example.entity.dao.FollowDO;
+import com.example.entity.dao.TopicDO;
 import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
@@ -22,15 +24,20 @@ import com.example.entity.dto.req.EmailResetReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.entity.dto.resp.UserDetailsRespDTO;
 import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
 import com.example.mapper.AccountPrivacyMapper;
+import com.example.mapper.FollowMapper;
+import com.example.mapper.TopicMapper;
 import com.example.service.AccountService;
 import com.example.utils.Const;
 import com.example.utils.FlowUtils;
 import jakarta.annotation.Resource;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.redisson.api.RLock;
@@ -70,6 +77,11 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
     PasswordEncoder passwordEncoder;
     @Resource
     RedissonClient redissonClient;
+
+    @Resource
+    TopicMapper topicMapper;
+    @Resource
+    FollowMapper followMapper;
     /**
      * 从数据库中通过用户名或邮箱查找用户详细信息
      * @param username 用户名
@@ -206,6 +218,40 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
         return success ? null :"未知错误，请联系管理员";
     }
 
+    @Override
+    public UserDetailsRespDTO getDetailById(int id, int uid) {
+        UserDetailsRespDTO userDetailsRespDTO = new UserDetailsRespDTO();
+        FollowDO followDO;
+        if(uid != id){
+            followDO = followMapper.selectOne(new LambdaQueryWrapper<>(FollowDO.class)
+                .eq(FollowDO::getFid, id).eq(FollowDO::getUid, uid));
+            if (followDO == null){
+                followMapper.insert(new FollowDO(null,uid,id,0,new Date()));
+                userDetailsRespDTO.setFollow(0);
+            }else{
+                userDetailsRespDTO.setFollow(followDO.getStatus());
+            }
+        }
+
+
+        fillUserDetailByPrivacy(userDetailsRespDTO,id);
+        LambdaQueryWrapper<TopicDO> eq = new LambdaQueryWrapper<>(TopicDO.class).eq(TopicDO::getUid,id);
+        List<TopicDO> topicDOS = topicMapper.selectList(eq);
+        userDetailsRespDTO.setTopics(topicDOS);
+        return userDetailsRespDTO;
+    }
+    private <T> T fillUserDetailByPrivacy(T target, int uid){
+        AccountDO accountDO = baseMapper.selectById(uid);
+        AccountDetailsDO accountDetailsDO = detailsMapper.selectById(uid);
+        AccountPrivacyDO accountPrivacyDO = privacyMapper.selectById(uid);
+        // 获取隐藏不要的数据
+        String[] strings = accountPrivacyDO.hiddenFields();
+        // 克隆除了隐藏的数据
+        BeanUtils.copyProperties(accountDO,target,strings);
+        BeanUtils.copyProperties(accountDetailsDO,target,strings);
+        return target;
+
+    }
     /**
      * 查询指定邮箱的用户是否已经存在
      * @param email 邮箱

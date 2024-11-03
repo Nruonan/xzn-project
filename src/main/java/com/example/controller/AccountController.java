@@ -9,6 +9,7 @@ import com.example.entity.dto.resp.AccountDetailsRespDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountPrivacyRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.entity.dto.resp.UserDetailsRespDTO;
 import com.example.service.AccountDetailsService;
 import com.example.service.AccountPrivacyService;
 import com.example.service.AccountService;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -84,5 +86,9 @@ public class AccountController {
     @GetMapping("/privacy")
     public RestBean<AccountPrivacyRespDTO> privacy(@RequestAttribute(Const.ATTR_USER_ID) int id){
         return RestBean.success(accountPrivacyService.accountPrivacy(id));
+    }
+    @GetMapping("/detail")
+    public RestBean<UserDetailsRespDTO> getDetailById(@RequestParam("id") int id,@RequestAttribute(Const.ATTR_USER_ID)int uid){
+        return RestBean.success(accountService.getDetailById(id,uid));
     }
 }

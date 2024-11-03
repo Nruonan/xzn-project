@@ -34,10 +34,10 @@ public class FollowController {
         return RestBean.success(follow);
     }
     @GetMapping()
-    public RestBean<Void> followById(@RequestParam("id") @Min(0) int id,@RequestParam("type")boolean type,
+    public RestBean<Void> followById(@RequestParam("id") @Min(0) int id,
         @RequestAttribute(Const.ATTR_USER_ID)int uid){
         return  utils.messageHandle(() ->
-            followService.followById(id, type,uid));
+            followService.followById(id,uid));
     }
     @GetMapping("/list")
     public RestBean<List<Integer>> followList(@RequestAttribute(Const.ATTR_USER_ID)int uid){
