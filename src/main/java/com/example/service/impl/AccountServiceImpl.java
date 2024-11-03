@@ -235,7 +235,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
 
 
         fillUserDetailByPrivacy(userDetailsRespDTO,id);
-        LambdaQueryWrapper<TopicDO> eq = new LambdaQueryWrapper<>(TopicDO.class).eq(TopicDO::getUid,id);
+        LambdaQueryWrapper<TopicDO> eq = new LambdaQueryWrapper<>(TopicDO.class).eq(TopicDO::getUid,id).orderByDesc(TopicDO::getTime);
         List<TopicDO> topicDOS = topicMapper.selectList(eq);
         userDetailsRespDTO.setTopics(topicDOS);
         return userDetailsRespDTO;
