@@ -71,7 +71,10 @@ public class ForumController {
     public RestBean<List<TopicPreviewRespDTO>> listTopic(@RequestParam @Min(0) @Max(10) int page, @RequestParam @Min(0) int type){
         return RestBean.success(topicService.listTopicByPage(page + 1,type));
     }
-
+    @GetMapping("/list-topic-follow")
+    public RestBean<List<TopicPreviewRespDTO>> listTopicFollow(@RequestParam @Min(0) @Max(10) int page,@RequestAttribute(Const.ATTR_USER_ID)int id){
+        return RestBean.success(topicService.listTopicFollowByPage(page + 1,id));
+    }
     @GetMapping("/top-topic")
     public RestBean<List<TopTopicRespDTO>> listTopTopics(){
         return RestBean.success(topicService.listTopTopics());

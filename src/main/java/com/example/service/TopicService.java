@@ -43,4 +43,6 @@ public interface TopicService  extends IService<TopicDO> {
     List<CommentRespDTO> comments(int tid, int page);
 
     String deleteComment(int id, int cid);
+
+    List<TopicPreviewRespDTO> listTopicFollowByPage(int pageNumber, int id);
 }
