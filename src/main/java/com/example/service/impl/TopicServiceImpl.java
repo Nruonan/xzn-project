@@ -145,11 +145,15 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
             List<FollowDO> followDOS = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
                 .eq(FollowDO::getUid, uid));
+            // 如果是大V用户 发送自身邮箱
+            if (followDOS.size() > 500){
+                // TODO mq处理数据
+            }
             List<InboxTopicDO> list = new ArrayList<>();
             followDOS.forEach(followDO -> {
                 InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
-                    .uid(uid)
-                    .fid(followDO.getFid())
+                    .uid(followDO.getFid())
+                    .fid(uid)
                     .tid(topic.getId())
                     .title(topic.getTitle())
                     .content(topic.getContent())
@@ -159,6 +163,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
                 list.add(inboxTopicDO);
             });
             // TODO mq处理数据
+            rabbitTemplate.convertAndSend("topicFollowQueue",list);
             return null;
         }else{
             return "内部错误，请联系管理员!";

@@ -9,6 +9,7 @@ import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.ExchangeBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -59,7 +60,23 @@ public class RabbitConfiguration {
         template.setMessageConverter(jackson2JsonMessageConverter());
         return template;
     }
-
+    @Bean("topicExchange")
+    public DirectExchange exchange(){
+        return ExchangeBuilder.directExchange("topic.direct").build();
+    }
+    @Bean("topic_follow_queue")
+    public Queue topicQueue(){
+        return QueueBuilder
+            .durable("topicFollowQueue")
+            .build();
+    }
+    @Bean("TopicBinding")
+    public Binding binding1(@Qualifier("topicExchange") DirectExchange exchange, @Qualifier("topic_follow_queue") Queue queue){
+        return BindingBuilder
+            .bind(queue)
+            .to(exchange)
+            .with("topic_follow");
+    }
     public static final String X_EXCHANGE = "ticket_exchange";
     public static final String QUEUE_A = "save_order_queue";
     public static final String QUEUE_B = "add_ticket_queue";
