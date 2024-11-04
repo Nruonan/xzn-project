@@ -44,4 +44,13 @@ public class FollowController {
         List<Integer> list = followService.followList(uid);
         return RestBean.success(list);
     }
+
+    @GetMapping("/fans")
+    public RestBean<Integer> findFansById(@RequestParam("id") @Min(0) int id){
+        return RestBean.success(followService.findFansById(id));
+    }
+    @GetMapping("/follows")
+    public RestBean<Integer> findFollowsById(@RequestParam("id") @Min(0) int id){
+        return  RestBean.success(followService.findFollowsById(id));
+    }
 }

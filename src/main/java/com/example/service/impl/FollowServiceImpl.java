@@ -3,6 +3,8 @@ package com.example.service.impl;
 import static com.example.utils.Const.FOLLOW_CACHE;
 
 
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -56,7 +58,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
         if (id == uid)return "关注错误，关注用户为当前用户！";
         String key = FOLLOW_CACHE + uid;
         LambdaQueryWrapper<FollowDO> eq = new LambdaQueryWrapper<>(FollowDO.class)
-            .eq(FollowDO::getUid, uid)
+            .in(FollowDO::getUid, uid)
             .eq(FollowDO::getFid,id);
         FollowDO followDO = baseMapper.selectOne(eq);
         if (followDO == null){
@@ -102,7 +104,11 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
         List<TopicDO> topicDOS = topicMapper.selectList(new LambdaQueryWrapper<>(TopicDO.class)
             .eq(TopicDO::getUid, id));
         List<InboxTopicDO> inboxTopicDOS = new ArrayList<>();
+        Date now = new Date();
+        Date date = DateUtil.offsetDay(now,-7);
+
         for (TopicDO topicDO : topicDOS) {
+            if(topicDO.getTime().before(date))continue;
             InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
                 .uid(uid)
                 .fid(id)
@@ -114,6 +120,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
                 .build();
             inboxTopicDOS.add(inboxTopicDO);
         }
+
         inboxTopicMapper.insert(inboxTopicDOS);
     }
     @Override
@@ -125,5 +132,25 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
             .map(FollowDO::getFid)
             .toList();
         return collect;
+    }
+
+    @Override
+    public Integer findFansById(int id) {
+        Long fans = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
+            .eq(FollowDO::getFid, id).eq(FollowDO::getStatus,1));
+        if(fans > 0){
+            return Math.toIntExact(fans);
+        }
+        return 0;
+    }
+
+    @Override
+    public Integer findFollowsById(int id) {
+        Long follows = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
+            .eq(FollowDO::getUid, id).eq(FollowDO::getStatus,1));
+        if(follows > 0){
+            return Math.toIntExact(follows);
+        }
+        return 0;
     }
 }

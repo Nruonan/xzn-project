@@ -16,4 +16,9 @@ public interface FollowService extends IService<FollowDO> {
     boolean isFollow(int id, int uid);
 
     List<Integer> followList(int uid);
+
+
+    Integer findFansById(int id);
+
+    Integer findFollowsById(int id);
 }
