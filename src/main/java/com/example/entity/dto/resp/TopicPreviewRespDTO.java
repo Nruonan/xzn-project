@@ -17,6 +17,7 @@ public class TopicPreviewRespDTO {
     List<String> images;
     Date time;
     Integer uid;
+    Integer tid;
     String username;
     String avatar;
     int like;

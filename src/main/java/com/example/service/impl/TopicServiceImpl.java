@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
+import com.example.entity.dao.FollowDO;
 import com.example.entity.dao.InboxTopicDO;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicCommentDO;
@@ -28,6 +29,7 @@ import com.example.entity.dto.resp.TopicTypeRespDTO;
 import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
 import com.example.mapper.AccountPrivacyMapper;
+import com.example.mapper.FollowMapper;
 import com.example.mapper.InboxTopicMapper;
 import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
@@ -102,6 +104,9 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     InboxTopicMapper inboxTopicMapper;
+
+    @Resource
+    FollowMapper followMapper;
     private Set<Integer> types = null;
     @PostConstruct
     private void initTypes() {
@@ -138,6 +143,22 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         topic.setTime(new Date());
         if(this.save(topic)){
             cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
+            List<FollowDO> followDOS = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
+                .eq(FollowDO::getUid, uid));
+            List<InboxTopicDO> list = new ArrayList<>();
+            followDOS.forEach(followDO -> {
+                InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
+                    .uid(uid)
+                    .fid(followDO.getFid())
+                    .tid(topic.getId())
+                    .title(topic.getTitle())
+                    .content(topic.getContent())
+                    .type(topic.getType())
+                    .time(new Date())
+                    .build();
+                list.add(inboxTopicDO);
+            });
+            // TODO mq处理数据
             return null;
         }else{
             return "内部错误，请联系管理员!";
@@ -191,13 +212,13 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Override
     public List<TopicPreviewRespDTO> listTopicFollowByPage(int pageNumber, int id) {
-        String key = Const.FORUM_TOPIC_PREVIEW_CACHE + pageNumber + ":" + "follow:" + id;
+        String key = Const.FORUM_TOPIC_FOLLOW_CACHE + ":" + id + pageNumber ;
         // 从缓存中获取数据
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
         Page<InboxTopicDO> page = new Page<>(pageNumber , 10);
         inboxTopicMapper.selectPage(page, Wrappers.lambdaQuery(InboxTopicDO.class)
-                .eq(InboxTopicDO::getFid,id)
+                .eq(InboxTopicDO::getUid,id)
                 .orderByDesc(InboxTopicDO::getTime));
         List<InboxTopicDO> topics = page.getRecords();
         if (topics.isEmpty()){
@@ -428,7 +449,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         // 获取帖子
         TopicPreviewRespDTO bean = new TopicPreviewRespDTO();
         // 得到user属性
-        BeanUtils.copyProperties(accountMapper.selectById(topicDO.getUid()),bean);
+        BeanUtils.copyProperties(accountMapper.selectById(topicDO.getFid()),bean);
         // 得到帖子属性
         BeanUtils.copyProperties(topicDO, bean);
         bean.setLike(baseMapper.interactCount(topicDO.getTid(),"like"));
