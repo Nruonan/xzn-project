@@ -42,6 +42,9 @@ import com.example.utils.FlowUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -144,26 +147,38 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         if(this.save(topic)){
             cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
             List<FollowDO> followDOS = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
-                .eq(FollowDO::getUid, uid));
+                .eq(FollowDO::getFid, uid));
             // 如果是大V用户 发送自身邮箱
-            if (followDOS.size() > 500){
+            if (followDOS.size() >= 5){
                 // TODO mq处理数据
-            }
-            List<InboxTopicDO> list = new ArrayList<>();
-            followDOS.forEach(followDO -> {
-                InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
-                    .uid(followDO.getFid())
-                    .fid(uid)
+                InboxTopicDO build = InboxTopicDO.builder()
                     .tid(topic.getId())
+                    .fid(uid)
+                    .uid(uid)
+                    .time(topic.getTime())
+                    .type(topic.getType())
                     .title(topic.getTitle())
                     .content(topic.getContent())
-                    .type(topic.getType())
-                    .time(new Date())
                     .build();
-                list.add(inboxTopicDO);
-            });
-            // TODO mq处理数据
-            rabbitTemplate.convertAndSend("topicFollowQueue",list);
+                inboxTopicMapper.insert(build);
+            }
+            else{
+                List<InboxTopicDO> list = new ArrayList<>();
+                followDOS.forEach(followDO -> {
+                    InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
+                        .uid(followDO.getFid())
+                        .fid(uid)
+                        .tid(topic.getId())
+                        .title(topic.getTitle())
+                        .content(topic.getContent())
+                        .type(topic.getType())
+                        .time(topic.getTime())
+                        .build();
+                    list.add(inboxTopicDO);
+                });
+                // TODO mq处理数据
+                rabbitTemplate.convertAndSend("topicFollowQueue",list);
+            }
             return null;
         }else{
             return "内部错误，请联系管理员!";
@@ -221,11 +236,19 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         // 从缓存中获取数据
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
+
         Page<InboxTopicDO> page = new Page<>(pageNumber , 10);
+        // 读取自己邮箱
         inboxTopicMapper.selectPage(page, Wrappers.lambdaQuery(InboxTopicDO.class)
                 .eq(InboxTopicDO::getUid,id)
+                .notIn(InboxTopicDO::getFid,id)
                 .orderByDesc(InboxTopicDO::getTime));
-        List<InboxTopicDO> topics = page.getRecords();
+        // 读取大V邮箱
+        List<InboxTopicDO> topics =  inboxTopicMapper.selectBigVTopic(id);
+        // 与自身邮箱合并
+        topics.addAll(page.getRecords());
+        topics = topics.stream().sorted(Comparator.comparing(InboxTopicDO::getTime).reversed()).toList();
+
         if (topics.isEmpty()){
             // 将空值也存入缓存，避免缓存穿透
             cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
