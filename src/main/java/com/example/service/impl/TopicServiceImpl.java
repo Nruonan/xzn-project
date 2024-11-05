@@ -145,7 +145,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         topic.setUid(uid);
         topic.setTime(new Date());
         if(this.save(topic)){
-            rabbitTemplate.convertAndSend("topicFollowQueue",topic);
+            rabbitTemplate.convertAndSend("topic.direct","topic_follow",topic);
             return null;
         }else{
             return "内部错误，请联系管理员!";

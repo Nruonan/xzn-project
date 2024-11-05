@@ -76,12 +76,23 @@ public class RabbitConfiguration {
             .durable("FollowQueue")
             .build();
     }
+    @Bean("followExchange")
+    public DirectExchange followExchange(){
+        return ExchangeBuilder.directExchange("follow.direct").build();
+    }
     @Bean("TopicBinding")
     public Binding binding1(@Qualifier("topicExchange") DirectExchange exchange, @Qualifier("topic_follow_queue") Queue queue){
         return BindingBuilder
             .bind(queue)
             .to(exchange)
             .with("topic_follow");
+    }
+    @Bean("FollowBinding")
+    public Binding binging2(@Qualifier("followExchange") DirectExchange exchange, @Qualifier("follow_queue") Queue queue){
+        return BindingBuilder
+            .bind(queue)
+            .to(exchange)
+            .with("follow");
     }
     public static final String X_EXCHANGE = "ticket_exchange";
     public static final String QUEUE_A = "save_order_queue";
