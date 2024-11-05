@@ -70,6 +70,12 @@ public class RabbitConfiguration {
             .durable("topicFollowQueue")
             .build();
     }
+    @Bean("follow_queue")
+    public Queue followQueue(){
+        return QueueBuilder
+            .durable("FollowQueue")
+            .build();
+    }
     @Bean("TopicBinding")
     public Binding binding1(@Qualifier("topicExchange") DirectExchange exchange, @Qualifier("topic_follow_queue") Queue queue){
         return BindingBuilder

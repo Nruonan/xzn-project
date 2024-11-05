@@ -145,45 +145,11 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         topic.setUid(uid);
         topic.setTime(new Date());
         if(this.save(topic)){
-            cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
-            List<FollowDO> followDOS = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
-                .eq(FollowDO::getFid, uid));
-            // 如果是大V用户 发送自身邮箱
-            if (followDOS.size() >= 5){
-                // TODO mq处理数据
-                InboxTopicDO build = InboxTopicDO.builder()
-                    .tid(topic.getId())
-                    .fid(uid)
-                    .uid(uid)
-                    .time(topic.getTime())
-                    .type(topic.getType())
-                    .title(topic.getTitle())
-                    .content(topic.getContent())
-                    .build();
-                inboxTopicMapper.insert(build);
-            }
-            else{
-                List<InboxTopicDO> list = new ArrayList<>();
-                followDOS.forEach(followDO -> {
-                    InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
-                        .uid(followDO.getFid())
-                        .fid(uid)
-                        .tid(topic.getId())
-                        .title(topic.getTitle())
-                        .content(topic.getContent())
-                        .type(topic.getType())
-                        .time(topic.getTime())
-                        .build();
-                    list.add(inboxTopicDO);
-                });
-                // TODO mq处理数据
-                rabbitTemplate.convertAndSend("topicFollowQueue",list);
-            }
+            rabbitTemplate.convertAndSend("topicFollowQueue",topic);
             return null;
         }else{
             return "内部错误，请联系管理员!";
         }
-
     }
     @Override
     public String updateTopic(TopicUpdateReqDTO requestParam, int uid) {
