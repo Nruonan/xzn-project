@@ -57,22 +57,27 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
     public String followById(int id,int uid) {
         if (id == uid)return "关注错误，关注用户为当前用户！";
         String key = FOLLOW_CACHE + uid;
+        Long count = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
+            .eq(FollowDO::getUid, uid));
+
         LambdaQueryWrapper<FollowDO> eq = new LambdaQueryWrapper<>(FollowDO.class)
             .in(FollowDO::getUid, uid)
             .eq(FollowDO::getFid,id);
         FollowDO followDO = baseMapper.selectOne(eq);
         if (followDO == null){
+            if(count >= 5)return "关注失败，最多只能关注5个用户";
             followDO = new FollowDO();
             followDO.setFid(id);
             followDO.setUid(uid);
             followDO.setStatus(1);
             followDO.setTime(new Date());
+            sendInbox(id,uid);
             boolean isSuccess = save(followDO);
+
             if (isSuccess){
                 stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
             }
-            sendInbox(id,uid);
-            return null;
+
         }else {
             if (followDO.getStatus() == 1) {
                 LambdaUpdateWrapper<FollowDO> updateWrapper = new LambdaUpdateWrapper<>(FollowDO.class)
@@ -83,6 +88,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
                 pullInbox(id,uid);
                 stringRedisTemplate.opsForSet().remove(key, String.valueOf(id));
             } else {
+                if(count >= 5)return "关注失败，最多只能关注5个用户";
                 LambdaUpdateWrapper<FollowDO> updateWrapper = new LambdaUpdateWrapper<>(FollowDO.class)
                     .eq(FollowDO::getUid, uid)
                     .eq(FollowDO::getFid,id)
@@ -91,8 +97,8 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
                 sendInbox(id,uid);
                 stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
             }
-        }
 
+        }
         return null;
     }
     private void pullInbox(int id,int uid){
