@@ -13,9 +13,9 @@ spring:
     username: zhennan996@163.com
     host: smtp.163.com
   rabbitmq:
-    host: 8.134.93.74
-    username: xiao
-    password: feiwu
+    host: 129.204.155.72
+    username: xzn
+    password: Nruonan996
     virtual-host: /
     port: 5672
     listener:
@@ -30,8 +30,8 @@ spring:
   data:
     redis:
       port: 6379
-      password: feiwu
-      host: 8.134.93.74
+      password: Nruonan996
+      host: 129.204.155.72
   security:
     jwt:
      expire: 72
@@ -44,13 +44,13 @@ spring:
       order: -100
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://129.204.155.72:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: feiwu
+    password: zzh2002
   minio:
-    endpoint: 'http://8.134.93.74:9000'
+    endpoint: 'http://129.204.155.72:9000'
     username: 'minio'
-    password: 'password'
+    password: 'feiwu996'
   weather:
     key: 7554413210914257a74e8a1fddc1931f
 server:
