@@ -78,8 +78,8 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
         map.put("key",key);
         map.put("id",id);
         map.put("uid",uid);
-        String s = (String) rabbitTemplate.convertSendAndReceive("follow.direct","follow",map);
-        return s;
+        rabbitTemplate.convertAndSend("follow.direct","follow",map);
+        return null;
     }
 
     @Override
