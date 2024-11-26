@@ -4,6 +4,7 @@ import com.example.entity.RestBean;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
+import com.example.entity.dto.resp.AuthorizeRespDTO;
 import com.example.service.AccountService;
 import com.example.utils.ControllerUtils;
 import jakarta.annotation.Resource;
@@ -34,7 +35,10 @@ public class AuthorizeController {
 
     @Resource
     ControllerUtils utils;
-
+    @GetMapping("/refresh")
+    public RestBean<AuthorizeRespDTO> refreshToken(@RequestParam("token") String token,HttpServletRequest request){
+        return RestBean.success(accountService.refreshToken(token, request));
+    }
     @GetMapping("/ask-code")
     public RestBean<Void> askVerifyCode(@RequestParam @Email String email,
                                         @RequestParam @Pattern(regexp = "(register|reset|modify)") String type,

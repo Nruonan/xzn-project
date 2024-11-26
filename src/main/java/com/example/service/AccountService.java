@@ -9,7 +9,10 @@ import com.example.entity.dto.req.EmailResetReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.entity.dto.resp.AuthorizeRespDTO;
 import com.example.entity.dto.resp.UserDetailsRespDTO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 /**
@@ -32,4 +35,6 @@ public interface AccountService extends IService<AccountDO> , UserDetailsService
     String changePassWord(int id, ChangePassWordReqDTO requestParam);
 
     UserDetailsRespDTO getDetailById(int id,int uid);
+
+    AuthorizeRespDTO refreshToken(String token,HttpServletRequest request);
 }

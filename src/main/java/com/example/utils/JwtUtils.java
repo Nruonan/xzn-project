@@ -77,10 +77,18 @@ public class JwtUtils {
      */
     public Date expireTime() {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.HOUR, expire);
+        calendar.add(Calendar.MINUTE, expire);
         return calendar.getTime();
     }
-
+    /**
+     * 根据配置快速计算过期时间
+     * @return 过期时间
+     */
+    public Date reExpireTime() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.HOUR, expire * 2);
+        return calendar.getTime();
+    }
     /**
      * 根据UserDetails生成对应的Jwt令牌
      * @param user 用户信息
@@ -104,7 +112,17 @@ public class JwtUtils {
             return null;
         }
     }
-
+    public String createRefreshJwt(UserDetails user, String username, int userId) {
+        Algorithm algorithm = Algorithm.HMAC256(key);
+        Date expire = this.reExpireTime();
+        return JWT.create()
+            .withJWTId(UUID.randomUUID().toString())
+            .withClaim("id", userId)
+            .withClaim("name", username)
+            .withExpiresAt(expire)
+            .withIssuedAt(new Date())
+            .sign(algorithm);
+    }
     /**
      * 解析Jwt令牌
      * @param headerToken 请求头中携带的令牌
@@ -142,7 +160,19 @@ public class JwtUtils {
             .authorities(claims.get("authorities").asArray(String.class))
             .build();
     }
-
+    /**
+     * 将jwt对象中的内容封装为UserDetails
+     * @param jwt 已解析的Jwt对象
+     * @return UserDetails
+     */
+    public UserDetails toRefreshUser(DecodedJWT jwt) {
+        Map<String, Claim> claims = jwt.getClaims();
+        return User
+            .withUsername(claims.get("name").asString())
+            .password("******")
+            .authorities("ROLE_user")
+            .build();
+    }
     /**
      * 将jwt对象中的用户ID提取出来
      * @param jwt 已解析的Jwt对象

@@ -109,12 +109,15 @@ public class SecurityConfiguration {
             User user = (User) authentication.getPrincipal();
             AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
             String jwt = utils.createJwt(user, account.getUsername(), account.getId());
-            if(jwt == null) {
+            String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
+            if(jwt == null && refreshJwt == null) {
                 writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
             } else {
                 AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
-                dto.setToken(jwt);
-                dto.setExpire(utils.expireTime());
+                dto.setAccess_token(jwt);
+                dto.setRefresh_token(refreshJwt);
+                dto.setAccess_expire(utils.expireTime());
+                dto.setRefresh_expire(utils.reExpireTime());
                 writer.write(RestBean.success(dto).asJsonString());
             }
         }

@@ -6,7 +6,7 @@ spring:
     methods: '*'
    flow:
     period: 3
-    limit: 100
+    limit: 500
     block: 30
   mail:
     password: BEAGDULMBXDYOGGO
@@ -34,7 +34,7 @@ spring:
       host: 129.204.155.72
   security:
     jwt:
-     expire: 72
+     expire: 1
      key: xznzzhxzn
      limit:
       base: 10
