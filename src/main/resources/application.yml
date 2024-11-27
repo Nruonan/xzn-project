@@ -34,7 +34,7 @@ spring:
       host: 129.204.155.72
   security:
     jwt:
-     expire: 1
+     expire: 24
      key: xznzzhxzn
      limit:
       base: 10

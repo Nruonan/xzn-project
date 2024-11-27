@@ -92,15 +92,19 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
 
     @Override
     public AuthorizeRespDTO refreshToken(String token, HttpServletRequest request) {
-            if (Boolean.FALSE.equals(stringRedisTemplate.opsForValue().setIfAbsent("xzn:token:refresh" + token, "0", 2, TimeUnit.MINUTES))){
-                // 判断当前的这个消息流程是否执行完成
-                if ( Objects.equals(stringRedisTemplate.opsForValue().get("xzn:token:refresh" + token), "1")) {
-                    return null;
-                }
-            }
-            String headerToken = "Bearer " + token;
+//         if (Boolean.FALSE.equals(stringRedisTemplate.opsForValue().setIfAbsent("xzn:token:refresh:" + username, "0", 2, TimeUnit.MINUTES))){
+//            // 判断当前的这个消息流程是否执行完成
+//            if ( Objects.equals(stringRedisTemplate.opsForValue().get("xzn:token:refresh:" + username), "1")) {
+//                return null;
+//            }
+//        }
+        String ip = request.getRemoteAddr();
+        AuthorizeRespDTO dto = null;
+        if (verifyLimit(ip)){
+            String refreshToken = "Bearer " + token;
             // 如果 Access Token 无效，但存在 Refresh Token，尝试解析 Refresh Token
-            DecodedJWT refreshJwt = utils.resolveJwt(headerToken);
+            DecodedJWT refreshJwt = utils.resolveJwt(refreshToken);
+            // 如果没有过期进行下一步操作
             if (refreshJwt != null) {
                 UserDetails user = utils.toRefreshUser(refreshJwt);
                 if (user != null) {
@@ -109,17 +113,18 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
                     // 如果 Refresh Token 有效，生成新的 Access Token
                     String newAccessToken = utils.createJwt(user, account.getUsername(), account.getId()); // 你需要实现这个方法
                     String newRefreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
-                    AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
+                    dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
                     dto.setAccess_token(newAccessToken);
                     dto.setRefresh_token(newRefreshJwt);
                     dto.setAccess_expire(utils.expireTime());
                     dto.setRefresh_expire(utils.reExpireTime());
-                    stringRedisTemplate.opsForValue().set("xzn:token:refresh"+token,"1",2, TimeUnit.MINUTES);
-                    return dto;
                 }
             }
+        }
 
-            return null;
+        // 刷新完成，设置标识
+//        stringRedisTemplate.opsForValue().set("xzn:token:refresh:"+username,"1",2, TimeUnit.MINUTES);
+        return dto;
     }
 
     /**

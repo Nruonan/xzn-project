@@ -86,7 +86,7 @@ public class JwtUtils {
      */
     public Date reExpireTime() {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.HOUR, expire * 2);
+        calendar.add(Calendar.MINUTE, expire * 2);
         return calendar.getTime();
     }
     /**
