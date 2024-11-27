@@ -43,10 +43,6 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
     @Resource
     JwtUtils utils;
 
-
-    @Resource
-    AccountService service;
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
         HttpServletResponse response,
