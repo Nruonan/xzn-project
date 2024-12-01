@@ -262,31 +262,33 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             if (ticket.getCount() <= 0 || requestParam.getCount() > ticket.getCount()) {
                 return "神券已被购清，请下次参与活动";
             }
+            // 修改库存数
+            ticket.setCount(ticket.getCount() - requestParam.getCount());
+            int updateResult = baseMapper.updateById(BeanUtil.toBean(ticket, TicketDO.class));
+            if (updateResult < 1){
+                return "库存不足,请下次参与活动";
+            }
             // 设置订单时间
             TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
             ticketOrderDO.setTime(new Date());
             ticketOrderDO.setId(IdUtil.getSnowflakeNextId());
-            // 添加订单
-            boolean isSuccess = ticketOrderMapper.insertOrUpdate(ticketOrderDO);
-            // 修改库存数
-            ticket.setCount(ticket.getCount() - ticketOrderDO.getCount());
-            baseMapper.updateById(BeanUtil.toBean(ticket,TicketDO.class));
-            // 删除缓存
-            rabbitTemplate.convertAndSend("delete_ticket_count_queue",ticket.getId());
+            // 生成订单
+            try{
+                rabbitTemplate.convertAndSend("delete_ticket_count_queue",ticketOrderDO);
+            }catch (Exception e){
+                // 抛出异常触发事务回滚
+                throw new RuntimeException("订单创建失败", e);
+            }
             if (!requestParam.getPay()){
                 // 延时删除未下单的订单
                 rabbitTemplate.convertAndSend("ticket_exchange", "save_order_exchange",ticketOrderDO.getId());
                 log.info("当前时间：{},发送一条时长{}毫秒 TTL 信息给队列 C:{}", new Date(),"901000", ticketOrderDO.getId());
             }
 
-            if (isSuccess){
-                return null;
-            }else {
-                return "请重新尝试购买";
-            }
         }finally {
             lock.unlock();
         }
+        return null;
     }
 
     @Override

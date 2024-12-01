@@ -3,6 +3,7 @@ package com.example.listener;
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.dao.TicketDO;
+import com.example.entity.dao.TicketOrderDO;
 import com.example.entity.dto.resp.TicketRespDTO;
 import com.example.mapper.TicketMapper;
 import com.example.mapper.TicketOrderMapper;
@@ -58,8 +59,11 @@ public class TicketQueueListener {
     @Transactional(rollbackFor = Exception.class)
     @Retryable(value = { Exception.class },maxAttemptsExpression = "${spring.rabbit.listener.simple.retry.max-attempts}",
         backoff = @Backoff(delayExpression = "${spring.rabbit.listener.simple.retry.back-off.delay}"))
-    public void receiveOrder(String id){
-        cacheUtils.deleteCache(Const.MARKET_TICKET_CACHE + ":" + id);
-        log.info("当前时间：{},删除缓存队列信息{}", new Date(), id);
+    public void receiveOrder(TicketOrderDO ticketOrderDO){
+        // 添加订单
+        boolean isSuccess = orderMapper.insertOrUpdate(ticketOrderDO);
+        // 删除缓存记录
+        cacheUtils.deleteCache(Const.MARKET_TICKET_CACHE + ":" + ticketOrderDO.getTid());
+        log.info("当前时间：{},删除缓存队列信息{}", new Date(), ticketOrderDO.getTid());
     }
 }
