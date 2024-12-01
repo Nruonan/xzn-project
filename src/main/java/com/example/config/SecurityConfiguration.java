@@ -106,7 +106,7 @@ public class SecurityConfiguration {
         PrintWriter writer = response.getWriter();
         if (!flowUtils.limitPeriodCounterCheck("xzn:login:limit" + request.getRemoteAddr(), 3, 60)){
             writer.write(RestBean
-                .forbidden("登录频繁禁止登录").asJsonString());
+                .forbidden("登录频繁，请稍后重试").asJsonString());
         }else{
             if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
                 writer.write(RestBean
