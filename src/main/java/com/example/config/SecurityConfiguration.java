@@ -9,6 +9,7 @@ import com.example.filter.JwtAuthorizeFilter;
 import com.example.filter.RequestLogFilter;
 import com.example.service.AccountService;
 import com.example.utils.Const;
+import com.example.utils.FlowUtils;
 import com.example.utils.JwtUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import java.io.PrintWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -43,6 +45,9 @@ public class SecurityConfiguration {
 
     @Resource
     JwtUtils utils;
+
+    @Resource
+    FlowUtils flowUtils;
 
     @Resource
     AccountService service;
@@ -99,28 +104,37 @@ public class SecurityConfiguration {
         Object exceptionOrAuthentication) throws IOException {
         response.setContentType("application/json;charset=utf-8");
         PrintWriter writer = response.getWriter();
-        if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
+        if (!flowUtils.limitPeriodCounterCheck("xzn:login:limit" + request.getRemoteAddr(), 3, 60)){
             writer.write(RestBean
-                .forbidden(exception.getMessage()).asJsonString());
-        } else if(exceptionOrAuthentication instanceof Exception exception) {
-            writer.write(RestBean
-                .unAuthorized(exception.getMessage()).asJsonString());
-        } else if(exceptionOrAuthentication instanceof Authentication authentication){
-            User user = (User) authentication.getPrincipal();
-            AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
-            String jwt = utils.createJwt(user, account.getUsername(), account.getId());
-            String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
-            if(jwt == null && refreshJwt == null) {
-                writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
-            } else {
-                AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
-                dto.setAccess_token(jwt);
-                dto.setRefresh_token(refreshJwt);
-                dto.setAccess_expire(utils.expireTime());
-                dto.setRefresh_expire(utils.reExpireTime());
-                writer.write(RestBean.success(dto).asJsonString());
+                .forbidden("登录频繁禁止登录").asJsonString());
+        }else{
+            if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
+                writer.write(RestBean
+                    .forbidden(exception.getMessage()).asJsonString());
+            } else if (exceptionOrAuthentication instanceof BadCredentialsException exception) {
+                writer.write(RestBean
+                    .forbidden(exception.getMessage()).asJsonString());
+            } else if(exceptionOrAuthentication instanceof Exception exception) {
+                writer.write(RestBean
+                    .unAuthorized(exception.getMessage()).asJsonString());
+            } else if(exceptionOrAuthentication instanceof Authentication authentication){
+                User user = (User) authentication.getPrincipal();
+                AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
+                String jwt = utils.createJwt(user, account.getUsername(), account.getId());
+                String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
+                if(jwt == null && refreshJwt == null) {
+                    writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
+                } else {
+                    AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
+                    dto.setAccess_token(jwt);
+                    dto.setRefresh_token(refreshJwt);
+                    dto.setAccess_expire(utils.expireTime());
+                    dto.setRefresh_expire(utils.reExpireTime());
+                    writer.write(RestBean.success(dto).asJsonString());
+                }
             }
         }
+
     }
 
     /**
