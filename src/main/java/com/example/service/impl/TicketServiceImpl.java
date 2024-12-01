@@ -257,6 +257,13 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             return "请进入购买界面，退出后重新进入";
         }
         try{
+            // 一人一单
+            Long count = ticketOrderMapper.selectCount(Wrappers.lambdaQuery(TicketOrderDO.class)
+                .eq(TicketOrderDO::getUid, requestParam.getUid())
+                .eq(TicketOrderDO::getTid, requestParam.getTid()));
+            if (count > 0){
+                return "请勿重复购买";
+            }
             // 判断库存是否充足
             ticket = this.findTicketById(requestParam.getTid());
             if (ticket.getCount() <= 0 || requestParam.getCount() > ticket.getCount()) {
