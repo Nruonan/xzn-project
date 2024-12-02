@@ -165,6 +165,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             .set(TopicDO::getTitle,requestParam.getTitle())
             .set(TopicDO::getContent,requestParam.getContent().toJSONString())
             .set(TopicDO::getType,requestParam.getType());
+        // TODO 修改帖子需要通知粉丝？
         boolean update = update(wrapper);
         if (update)return null;
         else return "修改失败，请联系管理员!";
