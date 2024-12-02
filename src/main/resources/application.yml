@@ -12,6 +12,16 @@ spring:
     password: BEAGDULMBXDYOGGO
     username: zhennan996@163.com
     host: smtp.163.com
+    port: 465
+    protocol: smtp
+    properties:
+        mail:
+          smtp:
+            auth: true
+            ssl:
+              enable: true
+            starttls:
+              enable: true
   rabbitmq:
     host: 129.204.155.72
     username: xzn
