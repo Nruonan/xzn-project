@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -51,6 +52,8 @@ public class SecurityConfiguration {
 
     @Resource
     AccountService service;
+    @Resource
+    StringRedisTemplate stringRedisTemplate;
 
     /**
      * 针对于 SpringSecurity 6 的新版配置方法
@@ -104,36 +107,39 @@ public class SecurityConfiguration {
         Object exceptionOrAuthentication) throws IOException {
         response.setContentType("application/json;charset=utf-8");
         PrintWriter writer = response.getWriter();
-        if (!flowUtils.limitPeriodCounterCheck("xzn:login:limit" + request.getRemoteAddr(), 3, 60)){
+        String s = stringRedisTemplate.opsForValue().get("xzn:login:limit" + request.getRemoteAddr());
+        if (s != null && Integer.parseInt(s)  >= 4){
             writer.write(RestBean
                 .forbidden("登录频繁，请稍后重试").asJsonString());
-        }else{
-            if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
+            return;
+        }
+        if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
+            writer.write(RestBean
+                .forbidden(exception.getMessage()).asJsonString());
+        } else if (exceptionOrAuthentication instanceof BadCredentialsException exception) {
+           flowUtils.limitPeriodCounterCheck("xzn:login:limit" + request.getRemoteAddr(), 5, 60);
                 writer.write(RestBean
                     .forbidden(exception.getMessage()).asJsonString());
-            } else if (exceptionOrAuthentication instanceof BadCredentialsException exception) {
-                writer.write(RestBean
-                    .forbidden(exception.getMessage()).asJsonString());
-            } else if(exceptionOrAuthentication instanceof Exception exception) {
-                writer.write(RestBean
-                    .unAuthorized(exception.getMessage()).asJsonString());
-            } else if(exceptionOrAuthentication instanceof Authentication authentication){
-                User user = (User) authentication.getPrincipal();
-                AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
-                String jwt = utils.createJwt(user, account.getUsername(), account.getId());
-                String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
-                if(jwt == null && refreshJwt == null) {
-                    writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
-                } else {
-                    AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
-                    dto.setAccess_token(jwt);
-                    dto.setRefresh_token(refreshJwt);
-                    dto.setAccess_expire(utils.expireTime());
-                    dto.setRefresh_expire(utils.reExpireTime());
-                    writer.write(RestBean.success(dto).asJsonString());
-                }
+        } else if(exceptionOrAuthentication instanceof Exception exception) {
+            writer.write(RestBean
+                .unAuthorized(exception.getMessage()).asJsonString());
+        } else if(exceptionOrAuthentication instanceof Authentication authentication){
+            User user = (User) authentication.getPrincipal();
+            AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
+            String jwt = utils.createJwt(user, account.getUsername(), account.getId());
+            String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
+            if(jwt == null && refreshJwt == null) {
+                writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
+            } else {
+                AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
+                dto.setAccess_token(jwt);
+                dto.setRefresh_token(refreshJwt);
+                dto.setAccess_expire(utils.expireTime());
+                dto.setRefresh_expire(utils.reExpireTime());
+                writer.write(RestBean.success(dto).asJsonString());
             }
         }
+
 
     }
 
