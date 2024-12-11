@@ -136,10 +136,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         if (!types.contains(requestParam.getType())) {
             return "文章类型非法";
         }
-        String key = Const.FORUM_TOPIC_CREATE_COUNTER + uid;
-        if (!flowUtils.limitPeriodCounterCheck(key, 3, 3600)){
-            return "发文频繁,请稍后再试";
-        }
         TopicDO topic = BeanUtil.toBean(requestParam, TopicDO.class);
         topic.setContent(requestParam.getContent().toJSONString());
         topic.setUid(uid);
@@ -327,7 +323,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
      */
     @Override
     public String addComment(int uid, AddCommentReqDTO requestParam) {
-
         String key = Const.FORUM_TOPIC_COMMENT_COUNTER + uid;
         // 检验内容
         if (!textLimitCheck(JSONObject.parseObject(requestParam.getContent()),2000)){
