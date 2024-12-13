@@ -25,8 +25,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -38,6 +38,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * @description
  */
 @Component
+@Order(-100)
 public class JwtAuthorizeFilter extends OncePerRequestFilter {
 
     @Resource
