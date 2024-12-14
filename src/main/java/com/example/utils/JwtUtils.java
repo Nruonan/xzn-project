@@ -3,6 +3,7 @@ package com.example.utils;
 
 
 
+import cn.hutool.crypto.digest.MD5;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -10,6 +11,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import jakarta.annotation.Resource;
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
@@ -46,7 +48,8 @@ public class JwtUtils {
 
     @Resource
     StringRedisTemplate template;
-
+    @Resource
+    MD5 md5;
     @Resource
     FlowUtils utils;
 
@@ -115,13 +118,21 @@ public class JwtUtils {
     public String createRefreshJwt(UserDetails user, String username, int userId) {
         Algorithm algorithm = Algorithm.HMAC256(key);
         Date expire = this.reExpireTime();
-        return JWT.create()
+        String refreshToken = JWT.create()
             .withJWTId(UUID.randomUUID().toString())
             .withClaim("id", userId)
             .withClaim("name", username)
+            .withClaim("authorities", user.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority).toList())
             .withExpiresAt(expire)
             .withIssuedAt(new Date())
             .sign(algorithm);
+        // redisKey 的形式为固定前缀+md5转换的token
+        String redisKey = String.format(Const.REFRESH_TOKEN_PREFIX,userId);
+        // 设置有效期为 3 days
+        template.opsForValue().set(redisKey, refreshToken, Duration.ofDays(3L));
+        return refreshToken;
     }
     /**
      * 解析Jwt令牌

@@ -1,6 +1,8 @@
 package com.example.config;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjectUtil;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.example.entity.RestBean;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dto.resp.AccountRespDTO;
@@ -135,7 +137,6 @@ public class SecurityConfiguration {
                 dto.setAccess_token(jwt);
                 dto.setRefresh_token(refreshJwt);
                 dto.setAccess_expire(utils.expireTime());
-                dto.setRefresh_expire(utils.reExpireTime());
                 writer.write(RestBean.success(dto).asJsonString());
             }
         }
@@ -156,7 +157,16 @@ public class SecurityConfiguration {
         response.setContentType("application/json;charset=utf-8");
         PrintWriter writer = response.getWriter();
         String authorization = request.getHeader("Authorization");
+        DecodedJWT decodedJWT = utils.resolveJwt(authorization);
+        Integer id = utils.toId(decodedJWT);
         if(utils.invalidateJwt(authorization)) {
+            String redisKey = String.format(Const.REFRESH_TOKEN_PREFIX, id);
+            Boolean hasKey = this.stringRedisTemplate.hasKey(redisKey);
+            if (hasKey) {
+                // 删除原 token
+                this.stringRedisTemplate.delete(redisKey);
+            }
+
             writer.write(RestBean.success("退出登录成功").asJsonString());
             return;
         }

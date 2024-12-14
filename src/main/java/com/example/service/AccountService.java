@@ -9,6 +9,7 @@ import com.example.entity.dto.req.EmailResetReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.entity.dto.resp.AuthorizeRefreshRespDTO;
 import com.example.entity.dto.resp.AuthorizeRespDTO;
 import com.example.entity.dto.resp.UserDetailsRespDTO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,5 +37,5 @@ public interface AccountService extends IService<AccountDO> , UserDetailsService
 
     UserDetailsRespDTO getDetailById(int id,int uid);
 
-    AuthorizeRespDTO refreshToken(String token, HttpServletRequest request);
+    AuthorizeRefreshRespDTO refreshToken(String token);
 }

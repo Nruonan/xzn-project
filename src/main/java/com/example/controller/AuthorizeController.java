@@ -4,8 +4,10 @@ import com.example.entity.RestBean;
 import com.example.entity.dto.req.ConfirmResetReqDTO;
 import com.example.entity.dto.req.EmailRegisterReqDTO;
 import com.example.entity.dto.req.EmailResetReqDTO;
+import com.example.entity.dto.resp.AuthorizeRefreshRespDTO;
 import com.example.entity.dto.resp.AuthorizeRespDTO;
 import com.example.service.AccountService;
+import com.example.utils.Const;
 import com.example.utils.ControllerUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +18,7 @@ import org.apache.ibatis.annotations.Param;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,8 +39,8 @@ public class AuthorizeController {
     @Resource
     ControllerUtils utils;
     @GetMapping("/refresh")
-    public RestBean<AuthorizeRespDTO> refreshToken(@RequestParam("token") String token,HttpServletRequest request){
-        return RestBean.success(accountService.refreshToken(token, request));
+    public RestBean<AuthorizeRefreshRespDTO> refreshToken(@RequestParam("token") String token){
+        return RestBean.success(accountService.refreshToken(token));
     }
     @GetMapping("/ask-code")
     public RestBean<Void> askVerifyCode(@RequestParam @Email String email,

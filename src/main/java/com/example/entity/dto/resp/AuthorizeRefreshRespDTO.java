@@ -1,6 +1,7 @@
 package com.example.entity.dto.resp;
 
 import java.util.Date;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -8,7 +9,8 @@ import lombok.Data;
  * @description
  */
 @Data
-public class AuthorizeRespDTO {
+@AllArgsConstructor
+public class AuthorizeRefreshRespDTO {
     String access_token;
     String refresh_token;
     Date access_expire;

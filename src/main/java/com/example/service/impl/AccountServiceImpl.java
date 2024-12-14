@@ -6,6 +6,7 @@ import static com.example.utils.Const.VERIFY_EMAIL_DATA;
 import static com.example.utils.Const.VERIFY_EMAIL_LIMIT;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjectUtil;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -23,7 +24,7 @@ import com.example.entity.dto.req.EmailResetReqDTO;
 import com.example.entity.dto.req.ModifyEmailReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
-import com.example.entity.dto.resp.AuthorizeRespDTO;
+import com.example.entity.dto.resp.AuthorizeRefreshRespDTO;
 import com.example.entity.dto.resp.UserDetailsRespDTO;
 import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
@@ -35,14 +36,11 @@ import com.example.utils.Const;
 import com.example.utils.FlowUtils;
 import com.example.utils.JwtUtils;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.redisson.api.RLock;
@@ -50,7 +48,6 @@ import org.redisson.api.RedissonClient;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -91,40 +88,41 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
     FollowMapper followMapper;
 
     @Override
-    public AuthorizeRespDTO refreshToken(String token, HttpServletRequest request) {
-//         if (Boolean.FALSE.equals(stringRedisTemplate.opsForValue().setIfAbsent("xzn:token:refresh:" + username, "0", 2, TimeUnit.MINUTES))){
-//            // 判断当前的这个消息流程是否执行完成
-//            if ( Objects.equals(stringRedisTemplate.opsForValue().get("xzn:token:refresh:" + username), "1")) {
-//                return null;
-//            }
-//        }
-        String ip = request.getRemoteAddr();
-        AuthorizeRespDTO dto = null;
-        if (verifyLimit(ip)){
-            String refreshToken = "Bearer " + token;
-            // 如果 Access Token 无效，但存在 Refresh Token，尝试解析 Refresh Token
-            DecodedJWT refreshJwt = utils.resolveJwt(refreshToken);
-            // 如果没有过期进行下一步操作
-            if (refreshJwt != null) {
-                UserDetails user = utils.toRefreshUser(refreshJwt);
-                if (user != null) {
-                    // 将新的 Access Token 加到响应头中
-                    AccountRespDTO account = findAccountByNameOrEmail(user.getUsername());
-                    // 如果 Refresh Token 有效，生成新的 Access Token
-                    String newAccessToken = utils.createJwt(user, account.getUsername(), account.getId()); // 你需要实现这个方法
-                    String newRefreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
-                    dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
-                    dto.setAccess_token(newAccessToken);
-                    dto.setRefresh_token(newRefreshJwt);
-                    dto.setAccess_expire(utils.expireTime());
-                    dto.setRefresh_expire(utils.reExpireTime());
-                }
-            }
+    public AuthorizeRefreshRespDTO refreshToken(String refreshToken) {
+        // 校验 token 是否有效
+        DecodedJWT isValidated = utils.resolveJwt("Bearer "+refreshToken);
+        if (isValidated == null) {
+            // token
+            return null;
         }
 
-        // 刷新完成，设置标识
-//        stringRedisTemplate.opsForValue().set("xzn:token:refresh:"+username,"1",2, TimeUnit.MINUTES);
-        return dto;
+        /**
+         * 校验 redis 里的 refreshToken 是否失效
+         * 未失效：将 redis 里的 refreshToken 删除，重新颁发新的 accessToken 和 refreshToken
+         * 已失效：重新登录
+         */
+
+        Integer id = utils.toId(isValidated);
+        String redisKey = String.format(Const.REFRESH_TOKEN_PREFIX, id);
+        Boolean hasKey = this.stringRedisTemplate.hasKey(redisKey);
+        if (ObjectUtil.notEqual(hasKey, Boolean.TRUE)) {
+            // 原 token 过期或已经使用过的逻辑
+            return null;
+        }
+        // 删除原 token
+        this.stringRedisTemplate.delete(redisKey);
+        // 颁发新的 accessToken 和 refreshToken
+        UserDetails user = utils.toUser(isValidated);
+        String accessToken = utils.createJwt(user,user.getUsername(),id);
+        refreshToken = utils.createRefreshJwt(user,user.getUsername(),id);
+        Date date = utils.expireTime();
+        // 将 Date 转换为 LocalDateTime
+        LocalDateTime localDateTime = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        // 将时间倒退8个小时
+        LocalDateTime newLocalDateTime = localDateTime.plusMinutes(8);
+        date = Date.from(newLocalDateTime.atZone(ZoneId.systemDefault()).toInstant());
+
+        return new AuthorizeRefreshRespDTO(accessToken, refreshToken,date);
     }
 
     /**
