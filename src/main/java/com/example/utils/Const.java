@@ -33,6 +33,8 @@ public class Const {
     public static final String MARKET_TICKET_CACHE = "xzn:market:ticket";
     public static final String MARKET_TICKET_PAY = "xzn:market:pay";
     public static final String FOLLOW_CACHE = "xzn:follow:";
+    public static final String FANS_CACHE = "xzn:follow:fans:";
+    public static final String FOLLOWS_CACHE = "xzn:follow:follows:";
     public static final String REFRESH_TOKEN_PREFIX = "xzn:refresh_token_%s";
 }
 

@@ -1,7 +1,9 @@
 package com.example.controller;
 
 
+import com.example.config.user.UserContext;
 import com.example.entity.RestBean;
+import com.example.entity.dto.resp.FansDetailRespDTO;
 import com.example.service.FollowService;
 import com.example.utils.Const;
 import com.example.utils.ControllerUtils;
@@ -52,5 +54,19 @@ public class FollowController {
     @GetMapping("/follows")
     public RestBean<Integer> findFollowsById(@RequestParam("id") @Min(0) int id){
         return  RestBean.success(followService.findFollowsById(id));
+    }
+
+    @GetMapping("/fans-list")
+    public RestBean<List<FansDetailRespDTO>> fansList(){
+        return RestBean.success(followService.fansList(UserContext.getUserId()));
+    }
+    @GetMapping("/follow-list")
+    public RestBean<List<FansDetailRespDTO>> followList(){
+        return RestBean.success(followService.followsList(UserContext.getUserId()));
+    }
+
+    @GetMapping("/together")
+    public RestBean<List<FansDetailRespDTO>> findTogether(@RequestParam("id") @Min(1) int id){
+        return RestBean.success(followService.findTogether(UserContext.getUserId(),id));
     }
 }

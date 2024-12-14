@@ -91,7 +91,7 @@ public class AccountController {
         return RestBean.success(accountPrivacyService.accountPrivacy(UserContext.getUserId()));
     }
     @GetMapping("/detail")
-    public RestBean<UserDetailsRespDTO> getDetailById(@RequestAttribute(Const.ATTR_USER_ID)int uid){
-        return RestBean.success(accountService.getDetailById(UserContext.getUserId(),uid));
+    public RestBean<UserDetailsRespDTO> getDetailById(@RequestParam("id") int id,@RequestAttribute(Const.ATTR_USER_ID)int uid){
+        return RestBean.success(accountService.getDetailById(id,uid));
     }
 }
