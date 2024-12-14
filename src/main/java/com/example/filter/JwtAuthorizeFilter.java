@@ -3,6 +3,8 @@ package com.example.filter;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONObject;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.example.config.user.UserContext;
+import com.example.config.user.UserInfoDTO;
 import com.example.entity.RestBean;
 import com.example.entity.dto.resp.AccountRespDTO;
 import com.example.entity.dto.resp.AuthorizeRespDTO;
@@ -44,6 +46,9 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
     @Resource
     JwtUtils utils;
 
+    @Resource
+    UserContext context;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
         HttpServletResponse response,
@@ -64,8 +69,13 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             // 将该用户jwt添加到请求头
             request.setAttribute(Const.ATTR_USER_ID, utils.toId(jwt));
+            UserContext.setUser(new UserInfoDTO(utils.toId(jwt)));
         }
-        // 触发http请求
-        filterChain.doFilter(request, response);
+        try{
+            // 触发http请求
+            filterChain.doFilter(request, response);
+        }finally {
+            UserContext.removeUser();
+        }
     }
 }

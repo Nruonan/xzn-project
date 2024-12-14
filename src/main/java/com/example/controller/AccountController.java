@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.config.user.UserContext;
 import com.example.entity.RestBean;
 import com.example.entity.dto.req.ChangePassWordReqDTO;
 import com.example.entity.dto.req.DetailsSaveReqDTO;
@@ -45,50 +46,52 @@ public class AccountController {
     AccountPrivacyService accountPrivacyService;
 
     @GetMapping("/info")
-    public RestBean<AccountInfoRespDTO> findAccountById(@RequestAttribute(Const.ATTR_USER_ID) int id){
-        AccountInfoRespDTO dto = accountService.findAccountById(id);
+    public RestBean<AccountInfoRespDTO> findAccountById(){
+
+        AccountInfoRespDTO dto = accountService.findAccountById(UserContext.getUserId());
         return RestBean.success(dto);
     }
 
     @GetMapping("/details")
-    public RestBean<AccountDetailsRespDTO> findAccountDetailsById(@RequestAttribute(Const.ATTR_USER_ID) int id){
+    public RestBean<AccountDetailsRespDTO> findAccountDetailsById(){
+        Integer userId = UserContext.getUserId();
         AccountDetailsRespDTO dto = Optional
-            .ofNullable(accountDetailsService.findAccountDetailsById(id))
+            .ofNullable(accountDetailsService.findAccountDetailsById(userId))
             .orElseGet(AccountDetailsRespDTO::new);
         return RestBean.success(dto);
     }
 
     @PostMapping("/save-details")
-    public RestBean<Void> saveAccountDetails(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody DetailsSaveReqDTO requestParam){
-        boolean success = accountDetailsService.saveAccountDetails(id, requestParam);
+    public RestBean<Void> saveAccountDetails(@RequestBody DetailsSaveReqDTO requestParam){
+        boolean success = accountDetailsService.saveAccountDetails(UserContext.getUserId(), requestParam);
         return success ? RestBean.success() :RestBean.failure(400,"此用户名已被其他用户使用，请重新更换！");
     }
 
     @PostMapping("/modify-email")
-    public RestBean<Void> modifyEmail(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ModifyEmailReqDTO requestParam){
-        String success  = accountService.modifyEmail(id,requestParam);
+    public RestBean<Void> modifyEmail(@RequestBody @Valid ModifyEmailReqDTO requestParam){
+        String success  = accountService.modifyEmail(UserContext.getUserId(),requestParam);
         return success == null ? RestBean.success() :RestBean.failure(400,success);
     }
 
     @PostMapping("/change-password")
-    public RestBean<Void> changePassWord(@RequestAttribute(Const.ATTR_USER_ID) int id, @RequestBody @Valid ChangePassWordReqDTO requestParam){
-        String success  = accountService.changePassWord(id, requestParam);
+    public RestBean<Void> changePassWord(@RequestBody @Valid ChangePassWordReqDTO requestParam){
+        String success  = accountService.changePassWord(UserContext.getUserId(), requestParam);
         return success == null ? RestBean.success() :RestBean.failure(400,success);
     }
 
     @PostMapping("/save-privacy")
-    public RestBean<Void> savePrivacy(@RequestAttribute(Const.ATTR_USER_ID) int id,@RequestBody @Valid
+    public RestBean<Void> savePrivacy(@RequestBody @Valid
         PrivacySaveReqDTO requestParam){
-        accountPrivacyService.savePrivacy(id, requestParam);
+        accountPrivacyService.savePrivacy(UserContext.getUserId(), requestParam);
         return RestBean.success();
     }
 
     @GetMapping("/privacy")
-    public RestBean<AccountPrivacyRespDTO> privacy(@RequestAttribute(Const.ATTR_USER_ID) int id){
-        return RestBean.success(accountPrivacyService.accountPrivacy(id));
+    public RestBean<AccountPrivacyRespDTO> privacy(){
+        return RestBean.success(accountPrivacyService.accountPrivacy(UserContext.getUserId()));
     }
     @GetMapping("/detail")
-    public RestBean<UserDetailsRespDTO> getDetailById(@RequestParam("id") int id,@RequestAttribute(Const.ATTR_USER_ID)int uid){
-        return RestBean.success(accountService.getDetailById(id,uid));
+    public RestBean<UserDetailsRespDTO> getDetailById(@RequestAttribute(Const.ATTR_USER_ID)int uid){
+        return RestBean.success(accountService.getDetailById(UserContext.getUserId(),uid));
     }
 }

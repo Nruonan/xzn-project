@@ -3,7 +3,7 @@ package com.example.utils;
 
 
 
-import cn.hutool.crypto.digest.MD5;
+
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -48,8 +48,7 @@ public class JwtUtils {
 
     @Resource
     StringRedisTemplate template;
-    @Resource
-    MD5 md5;
+
     @Resource
     FlowUtils utils;
 
