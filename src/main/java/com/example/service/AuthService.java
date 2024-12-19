@@ -1,6 +1,8 @@
 package com.example.service;
 
 import com.example.entity.dto.resp.AuthorizeRespDTO;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.http.HttpRequest;
 
 /**
  * @author Nruonan
@@ -8,5 +10,5 @@ import com.example.entity.dto.resp.AuthorizeRespDTO;
  */
 public interface AuthService {
 
-    AuthorizeRespDTO login(String username, String password);
+    AuthorizeRespDTO login(String username, String password, HttpServletRequest request);
 }

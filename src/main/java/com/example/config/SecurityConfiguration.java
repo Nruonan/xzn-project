@@ -25,7 +25,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
@@ -118,39 +120,17 @@ public class SecurityConfiguration {
         Object exceptionOrAuthentication) throws IOException {
         response.setContentType("application/json;charset=utf-8");
         PrintWriter writer = response.getWriter();
-        String s = stringRedisTemplate.opsForValue().get("xzn:login:limit" + request.getRemoteAddr());
-        if (s != null && Integer.parseInt(s)  >= 4){
-            writer.write(RestBean
-                .forbidden("登录频繁，请稍后重试").asJsonString());
-            return;
-        }
+
         if(exceptionOrAuthentication instanceof AccessDeniedException exception) {
             writer.write(RestBean
                 .forbidden(exception.getMessage()).asJsonString());
         } else if (exceptionOrAuthentication instanceof BadCredentialsException exception) {
-           flowUtils.limitPeriodCounterCheck("xzn:login:limit" + request.getRemoteAddr(), 5, 60);
-                writer.write(RestBean
+           writer.write(RestBean
                     .forbidden(exception.getMessage()).asJsonString());
         } else if(exceptionOrAuthentication instanceof Exception exception) {
             writer.write(RestBean
                 .unAuthorized(exception.getMessage()).asJsonString());
-        } else if(exceptionOrAuthentication instanceof Authentication authentication){
-            User user = (User) authentication.getPrincipal();
-            AccountRespDTO account = service.findAccountByNameOrEmail(user.getUsername());
-            String jwt = utils.createJwt(user, account.getUsername(), account.getId());
-            String refreshJwt = utils.createRefreshJwt(user, account.getUsername(), account.getId());
-            if(jwt == null && refreshJwt == null) {
-                writer.write(RestBean.forbidden("登录验证频繁，请稍后再试").asJsonString());
-            } else {
-                AuthorizeRespDTO dto = BeanUtil.toBean(account, AuthorizeRespDTO.class);
-                dto.setAccess_token(jwt);
-                dto.setRefresh_token(refreshJwt);
-                dto.setAccess_expire(utils.expireTime());
-                writer.write(RestBean.success(dto).asJsonString());
-            }
         }
-
-
     }
 
     /**

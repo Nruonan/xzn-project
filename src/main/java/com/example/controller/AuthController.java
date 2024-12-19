@@ -5,6 +5,8 @@ import com.example.entity.dto.resp.AuthorizeRespDTO;
 import com.example.service.AccountService;
 import com.example.service.AuthService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.http.HttpRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,7 +23,7 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/login")
-    public RestBean<AuthorizeRespDTO> login(@RequestParam String username, @RequestParam String password){
-        return RestBean.success(authService.login(username,password));
+    public RestBean<AuthorizeRespDTO> login(@RequestParam String username, @RequestParam String password, HttpServletRequest request){
+        return RestBean.success(authService.login(username,password,request));
     }
 }
