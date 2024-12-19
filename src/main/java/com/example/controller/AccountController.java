@@ -44,7 +44,6 @@ public class AccountController {
 
     @Resource
     AccountPrivacyService accountPrivacyService;
-
     @GetMapping("/info")
     public RestBean<AccountInfoRespDTO> findAccountById(){
 

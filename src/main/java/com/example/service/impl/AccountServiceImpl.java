@@ -47,7 +47,10 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -124,6 +127,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
 
         return new AuthorizeRefreshRespDTO(accessToken, refreshToken,date);
     }
+
 
     /**
      * 从数据库中通过用户名或邮箱查找用户详细信息

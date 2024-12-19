@@ -38,4 +38,5 @@ public interface AccountService extends IService<AccountDO> , UserDetailsService
     UserDetailsRespDTO getDetailById(int id,int uid);
 
     AuthorizeRefreshRespDTO refreshToken(String token);
+
 }

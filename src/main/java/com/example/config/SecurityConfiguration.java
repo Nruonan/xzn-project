@@ -22,7 +22,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -57,6 +59,12 @@ public class SecurityConfiguration {
     @Resource
     StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    JwtAuthenticationProvider jwtAuthenticationProvider;
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
     /**
      * 针对于 SpringSecurity 6 的新版配置方法
      * @param http 配置器
@@ -72,12 +80,12 @@ public class SecurityConfiguration {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().hasAnyRole(Const.ROLE_DEFAULT,"admin")
             )
-            .formLogin(conf -> conf
-                .loginProcessingUrl("/api/auth/login")
-                .failureHandler(this::handleProcess)
-                .successHandler(this::handleProcess)
-                .permitAll()
-            )
+//            .formLogin(conf -> conf
+//                .loginProcessingUrl("/api/auth/login")
+//                .failureHandler(this::handleProcess)
+//                .successHandler(this::handleProcess)
+//                .permitAll()
+//            )
             .logout(conf -> conf
                 .logoutUrl("/api/auth/logout")
                 .logoutSuccessHandler(this::onLogoutSuccess)
@@ -89,6 +97,7 @@ public class SecurityConfiguration {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(conf -> conf
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authenticationProvider(jwtAuthenticationProvider)
             .addFilterBefore(requestLogFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthorizeFilter, RequestLogFilter.class)
             .build();
