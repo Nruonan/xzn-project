@@ -4,6 +4,7 @@ import static com.example.utils.Const.FANS_CACHE;
 import static com.example.utils.Const.FOLLOWS_CACHE;
 import static com.example.utils.Const.FOLLOW_CACHE;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -18,11 +19,15 @@ import com.example.mapper.InboxTopicMapper;
 import com.example.mapper.TopicMapper;
 import com.example.service.FollowService;
 import com.example.utils.CacheUtils;
+import com.example.utils.Const;
 import jakarta.annotation.Resource;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,10 +106,13 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
 
     @Override
     public Integer findFollowsById(int id) {
-        Long follows = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
-            .eq(FollowDO::getUid, id).eq(FollowDO::getStatus,1));
-        if(follows > 0){
-            return Math.toIntExact(follows);
+        Long count = stringRedisTemplate.opsForZSet().size(FOLLOW_CACHE + id);
+        if(count == null || count == 0){
+            count = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
+                .eq(FollowDO::getUid, id).eq(FollowDO::getStatus,1));
+        }
+        if(count > 0){
+            return Math.toIntExact(count);
         }
         return 0;
     }
@@ -185,7 +193,17 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
 
     @Override
     public List<FansDetailRespDTO> findTogether(Integer userId, Integer id) {
-        // TODO 共同关注
-        return null;
+        if (Objects.equals(id, userId))return null;
+        String key1 = FOLLOW_CACHE + userId;
+        String key2 = FOLLOW_CACHE + id;
+        Set<String> intersect = stringRedisTemplate.opsForZSet().intersect(key1, key2);
+        if (intersect != null && intersect.isEmpty()) {
+            return null;
+        }
+        List<String> collect = intersect.stream().toList();
+        LambdaQueryWrapper<AccountDO> in = new LambdaQueryWrapper<AccountDO>()
+            .in(AccountDO::getId, collect);
+        List<AccountDO> accountDOS = accountMapper.selectList(in);
+        return BeanUtil.copyToList(accountDOS,FansDetailRespDTO.class);
     }
 }
