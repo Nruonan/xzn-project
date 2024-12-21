@@ -45,7 +45,13 @@ public class WeatherServiceImpl implements WeatherService {
         if (geo == null)return null;
         // 获取位置信息中的id
         JSONObject location = geo.getJSONArray("location").getJSONObject(0);
-        Integer id = location.getInteger("id");
+        Integer id;
+        try{
+            id = location.getInteger("id");
+        }catch (Exception e){
+            e.printStackTrace();
+            id = 101280102;
+        }
 
         String key = FORUM_WEATHER_CACHE+id;
         // 读取天气信息 如果有就可以直接返回
