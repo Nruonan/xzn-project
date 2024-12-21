@@ -282,10 +282,12 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Override
     public void interact(Interact interact, boolean state) {
-        String type = interact.getType();
-        synchronized (type.intern()){
-            stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
-            this.saveInteractSchedule(type);
+        if (!flowUtils.limitPeriodCounterCheck("xzn:interact:ban"+interact.getUid(), 2, 1800)){
+            String type = interact.getType();
+            synchronized (type.intern()){
+                stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
+                this.saveInteractSchedule(type);
+            }
         }
     }
 
