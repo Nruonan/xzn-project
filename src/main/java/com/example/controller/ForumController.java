@@ -8,6 +8,7 @@ import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
+import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -118,5 +119,10 @@ public class ForumController {
     public RestBean<Void> deleteComment(@RequestAttribute(Const.ATTR_USER_ID)int id,@RequestParam @Min(0) int cid){
         return utils.messageHandle(() ->
             topicService.deleteComment(id,cid));
+    }
+
+    @GetMapping("/hot-topic")
+    public RestBean<List<HotTopicRespDTO>> hotTopic(){
+        return RestBean.success(topicService.hotTopic());
     }
 }

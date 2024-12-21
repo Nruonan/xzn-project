@@ -87,7 +87,6 @@ public class TopicAspect {
             }
             return "评论内容包含敏感词，无法发布";
         }
-
         // 继续执行原始方法
         return joinPoint.proceed();
     }

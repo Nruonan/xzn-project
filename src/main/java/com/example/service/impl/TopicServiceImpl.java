@@ -21,6 +21,7 @@ import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
 import com.example.entity.dto.resp.CommentRespDTO.User;
+import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -238,6 +239,17 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         cacheUtils.saveListToCache(key , list, 60);
 
         return list;
+    }
+
+    @Override
+    public List<HotTopicRespDTO> hotTopic() {
+        List<HotTopicRespDTO> hotTopicRespDTOS = cacheUtils.takeListFormCache("xzn:hot:topics", HotTopicRespDTO.class);
+        if (hotTopicRespDTOS != null) return hotTopicRespDTOS;
+
+        List<TopicDO> topicDOS = baseMapper.selectList(Wrappers.<TopicDO>lambdaQuery().orderByDesc(TopicDO::getScore)).subList(0,5);
+        hotTopicRespDTOS = BeanUtil.copyToList(topicDOS, HotTopicRespDTO.class);
+        cacheUtils.saveListToCache("xzn:hot:topics",hotTopicRespDTOS, 60);
+        return hotTopicRespDTOS;
     }
 
     @Override

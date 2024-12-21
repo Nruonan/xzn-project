@@ -8,6 +8,7 @@ import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
+import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -45,4 +46,6 @@ public interface TopicService  extends IService<TopicDO> {
     String deleteComment(int id, int cid);
 
     List<TopicPreviewRespDTO> listTopicFollowByPage(int pageNumber, int id);
+
+    List<HotTopicRespDTO> hotTopic();
 }
