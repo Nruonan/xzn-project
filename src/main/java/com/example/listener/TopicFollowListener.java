@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
@@ -40,8 +41,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class TopicFollowListener {
     @Resource
-    InboxTopicMapper inboxTopicMapper;
-    @Resource
     TopicMapper topicMapper;
     @Resource
     FollowMapper followMapper;
@@ -53,35 +52,41 @@ public class TopicFollowListener {
     @RabbitHandler
     public void receive(TopicDO topic){
         cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
-        List<FollowDO> followDOS = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
-            .eq(FollowDO::getFid, topic.getUid()));
+        Set<String> followSet = stringRedisTemplate.opsForZSet().range(Const.FOLLOW_CACHE + topic.getUid(), 0, -1);
+        if (followSet.isEmpty()){
+            followSet = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
+                .eq(FollowDO::getFid, topic.getUid())).stream().map(followDO -> String.valueOf(followDO.getUid())).collect(Collectors.toSet());
+        }
         // 如果是大V用户 发送自身邮箱
-        if (followDOS.size() >= 5) {
-            InboxTopicDO build = InboxTopicDO.builder()
-                .tid(topic.getId())
-                .fid(topic.getUid())
-                .uid(topic.getUid())
-                .time(topic.getTime())
-                .type(topic.getType())
-                .title(topic.getTitle())
-                .content(topic.getContent())
-                .build();
-            inboxTopicMapper.insert(build);
+        if (followSet.size() >= 5) {
+//            InboxTopicDO build = InboxTopicDO.builder()
+//                .tid(topic.getId())
+//                .fid(topic.getUid())
+//                .uid(topic.getUid())
+//                .time(topic.getTime())
+//                .type(topic.getType())
+//                .title(topic.getTitle())
+//                .content(topic.getContent())
+//                .build();
+//                        inboxTopicMapper.insert(build);
+            stringRedisTemplate.opsForZSet().add(Const.FEED_BIG_CACHE + topic.getUid(),String.valueOf(topic.getId()),System.currentTimeMillis());
         } else {
-            List<InboxTopicDO> list = new ArrayList<>();
-            followDOS.forEach(followDO -> {
-                InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
-                    .uid(followDO.getUid())
-                    .fid(topic.getUid())
-                    .tid(topic.getId())
-                    .title(topic.getTitle())
-                    .content(topic.getContent())
-                    .type(topic.getType())
-                    .time(topic.getTime())
-                    .build();
-                list.add(inboxTopicDO);
-            });
-            inboxTopicMapper.insert(list);
+//            List<InboxTopicDO> list = new ArrayList<>();
+//            followDOS.forEach(followDO -> {
+//                InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
+//                    .uid(followDO.getUid())
+//                    .fid(topic.getUid())
+//                    .tid(topic.getId())
+//                    .title(topic.getTitle())
+//                    .content(topic.getContent())
+//                    .type(topic.getType())
+//                    .time(topic.getTime())
+//                    .build();
+//                list.add(inboxTopicDO);
+              followSet.stream().forEach(fid -> {
+                  String key = Const.FEED_CACHE + fid;
+                  stringRedisTemplate.opsForZSet().add(key,String.valueOf(topic.getId()),System.currentTimeMillis());
+              });
         }
     }
 
@@ -105,7 +110,7 @@ public class TopicFollowListener {
             int isSuccess = followMapper.insert(followDO);
 
             if (isSuccess > 0){
-                stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
+                stringRedisTemplate.opsForZSet().add(key, String.valueOf(id),System.currentTimeMillis());
             }
 
         }else {
@@ -116,7 +121,7 @@ public class TopicFollowListener {
                     .set(FollowDO::getStatus,0);
                 followMapper.update(updateWrapper);
                 pullInbox(id,uid);
-                stringRedisTemplate.opsForSet().remove(key, String.valueOf(id));
+                stringRedisTemplate.opsForZSet().remove(key, String.valueOf(id));
             } else {
                 if(count >= 5)return "关注失败，最多只能关注5个用户";
                 LambdaUpdateWrapper<FollowDO> updateWrapper = new LambdaUpdateWrapper<>(FollowDO.class)
@@ -125,38 +130,47 @@ public class TopicFollowListener {
                     .set(FollowDO::getStatus,1);
                 followMapper.update(updateWrapper);
                 sendInbox(id,uid);
-                stringRedisTemplate.opsForSet().add(key, String.valueOf(id));
+                stringRedisTemplate.opsForZSet().add(key, String.valueOf(id),System.currentTimeMillis());
             }
         }
         return null;
     }
 
     private void pullInbox(int id,int uid){
-        inboxTopicMapper.delete(new LambdaQueryWrapper<>(InboxTopicDO.class)
-            .eq(InboxTopicDO::getFid, id)
-            .eq(InboxTopicDO::getUid, uid));
+        List<TopicDO> topicDOS = topicMapper.selectList(new LambdaQueryWrapper<>(TopicDO.class)
+            .eq(TopicDO::getUid, id));
+        topicDOS.forEach(topic ->{
+            stringRedisTemplate.opsForZSet().remove(Const.FEED_CACHE + uid,String.valueOf(topic.getId()));
+        });
+//        inboxTopicMapper.delete(new LambdaQueryWrapper<>(InboxTopicDO.class)
+//            .eq(InboxTopicDO::getFid, id)
+//            .eq(InboxTopicDO::getUid, uid));
     }
     public void sendInbox(int id,int uid){
         List<TopicDO> topicDOS = topicMapper.selectList(new LambdaQueryWrapper<>(TopicDO.class)
-            .eq(TopicDO::getUid, id));
-        List<InboxTopicDO> inboxTopicDOS = new ArrayList<>();
-        Date now = new Date();
-        Date date = DateUtil.offsetDay(now,-7);
+            .eq(TopicDO::getUid, id))
+            .stream().filter(topicDO -> topicDO.getTime().after(DateUtil.offsetDay(new Date(),-14))).toList();
+//        List<InboxTopicDO> inboxTopicDOS = new ArrayList<>();
+//        Date now = new Date();
+//        Date date = DateUtil.offsetDay(now,-7);
+//
+//        for (TopicDO topicDO : topicDOS) {
+//            if(topicDO.getTime().before(date))continue;
+//            InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
+//                .uid(uid)
+//                .fid(id)
+//                .tid(topicDO.getId())
+//                .type(topicDO.getType())
+//                .content(topicDO.getContent())
+//                .title(topicDO.getTitle())
+//                .time(topicDO.getTime())
+//                .build();
+//            inboxTopicDOS.add(inboxTopicDO);
+//        }
+        topicDOS.forEach(topic ->{
+            stringRedisTemplate.opsForZSet().add(Const.FEED_CACHE + uid,topic.getId().toString(),System.currentTimeMillis());
+        });
 
-        for (TopicDO topicDO : topicDOS) {
-            if(topicDO.getTime().before(date))continue;
-            InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
-                .uid(uid)
-                .fid(id)
-                .tid(topicDO.getId())
-                .type(topicDO.getType())
-                .content(topicDO.getContent())
-                .title(topicDO.getTitle())
-                .time(topicDO.getTime())
-                .build();
-            inboxTopicDOS.add(inboxTopicDO);
-        }
-
-        inboxTopicMapper.insert(inboxTopicDOS);
+//        inboxTopicMapper.insert(inboxTopicDOS);
     }
 }

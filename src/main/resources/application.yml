@@ -65,3 +65,7 @@ spring:
     key: 7554413210914257a74e8a1fddc1931f
 server:
   port: 8081
+#  ssl:
+#    certificate: classpath:crt.pem
+#    certificate-private-key: classpath:key.key
+#    trust-certificate: classpath:crt.pem

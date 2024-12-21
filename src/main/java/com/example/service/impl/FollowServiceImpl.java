@@ -59,7 +59,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, FollowDO> imple
     public String followById(int id,int uid) {
         if (id == uid)return "关注错误，关注用户为当前用户！";
         String key = FOLLOW_CACHE + uid;
-        Long count = stringRedisTemplate.opsForSet().size(key);
+        Long count = stringRedisTemplate.opsForZSet().size(key);
         if (count == 0){
             count = baseMapper.selectCount(new LambdaQueryWrapper<>(FollowDO.class)
                 .eq(FollowDO::getUid, uid));

@@ -81,8 +81,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Resource
     CacheUtils cacheUtils;
 
-    @Resource
-    RedissonClient redissonClient;
 
     @Resource
     AccountMapper accountMapper;
@@ -93,8 +91,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Resource
     AccountPrivacyMapper accountPrivacyMapper;
 
-    @Resource
-    NotificationService notificationService;
 
     @Resource
     StringRedisTemplate stringRedisTemplate;
@@ -104,7 +100,8 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
     @Resource
     RabbitTemplate rabbitTemplate;
-
+    @Resource
+    TopicMapper topicMapper;
     @Resource
     InboxTopicMapper inboxTopicMapper;
 
@@ -200,24 +197,44 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         List<TopicPreviewRespDTO> list = cacheUtils.takeListFormCache(key, TopicPreviewRespDTO.class);
         if (list != null) return list;
 
-        Page<InboxTopicDO> page = new Page<>(pageNumber , 10);
+        Page<TopicDO> page = new Page<>(pageNumber , 10);
         // 读取自己邮箱
-        inboxTopicMapper.selectPage(page, Wrappers.lambdaQuery(InboxTopicDO.class)
-                .eq(InboxTopicDO::getUid,id)
-                .notIn(InboxTopicDO::getFid,id)
-                .orderByDesc(InboxTopicDO::getTime));
+//        inboxTopicMapper.selectPage(page, Wrappers.lambdaQuery(InboxTopicDO.class)
+//                .eq(InboxTopicDO::getUid,id)
+//                .notIn(InboxTopicDO::getFid,id)
+//                .orderByDesc(InboxTopicDO::getTime));
+        Set<String> tidList = stringRedisTemplate.opsForZSet().range(Const.FEED_CACHE + id, 0, -1);
+        Set<String> followList = stringRedisTemplate.opsForZSet().range(Const.FOLLOW_CACHE + id, 0, -1);
+        if (followList == null || followList.isEmpty()){
+            followList.forEach(uid -> {
+                // 读取大V邮箱
+                Set<String> range = stringRedisTemplate.opsForZSet().range(Const.FEED_BIG_CACHE + uid, 0, -1);
+                if (range != null) {
+                    if (tidList != null) {
+                        tidList.addAll(range);
+                    }
+                }
+            });
+        }
+        if (tidList.size() == 0 || tidList.isEmpty()){
+            return null;
+        }
         // 读取大V邮箱
-        List<InboxTopicDO> topics =  inboxTopicMapper.selectBigVTopic(id);
+        // List<InboxTopicDO> topics =  inboxTopicMapper.selectBigVTopic(id);
         // 与自身邮箱合并
-        topics.addAll(page.getRecords());
-        topics = topics.stream().sorted(Comparator.comparing(InboxTopicDO::getTime).reversed()).toList();
+//        topics.addAll(page.getRecords());
+        topicMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class)
+            .in(TopicDO::getId, tidList)
+            .orderByDesc(TopicDO::getTime));
+        List<TopicDO> topics = page.getRecords();
+//        topics = topics.stream().sorted(Comparator.comparing(InboxTopicDO::getTime).reversed()).toList();
 
         if (topics.isEmpty()){
             // 将空值也存入缓存，避免缓存穿透
             cacheUtils.saveListToCache(key, new ArrayList<>(), 60);
             return new ArrayList<>();
         }
-        list = topics.stream().map(this::resolveToPreviewFollow).toList();
+        list = topics.stream().map(this::resolveToPreview).toList();
         cacheUtils.saveListToCache(key , list, 60);
 
         return list;

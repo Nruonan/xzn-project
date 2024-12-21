@@ -36,5 +36,7 @@ public class Const {
     public static final String FANS_CACHE = "xzn:follow:fans:";
     public static final String FOLLOWS_CACHE = "xzn:follow:follows:";
     public static final String REFRESH_TOKEN_PREFIX = "xzn:refresh_token_%s";
+    public static final String FEED_CACHE = "xzn:feed:";
+    public static final String FEED_BIG_CACHE = "xzn:feed:big:";
 }
 
