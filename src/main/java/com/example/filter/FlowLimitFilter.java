@@ -47,63 +47,39 @@ public class FlowLimitFilter extends HttpFilter {
     FlowUtils utils;
 
 
-    @Resource
-    RedissonClient redissonClient;
     @Override
     protected void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws IOException, ServletException {
         String address = request.getRemoteAddr();
-        if (!tryCount(address)) {
+        if ("OPTIONS".equals(request.getMethod()) && !tryCount(address)) {
             this.writeBlockMessage(response);
         } else {
             chain.doFilter(request, response);
         }
     }
+    /**
+     * 为响应编写拦截内容，提示用户操作频繁
+     * @param response 响应
+     * @throws IOException 可能的异常
+     */
     private void writeBlockMessage(HttpServletResponse response) throws IOException {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setStatus(429);
         response.setContentType("application/json;charset=utf-8");
         PrintWriter writer = response.getWriter();
-        writer.write(RestBean.forbidden("操作频繁，请稍后再试").asJsonString());
+        writer.write(RestBean.failure(429,"操作频繁，请稍后再试").asJsonString());
     }
-    private boolean tryCount(String ip) {
-        String counterKey = Const.FLOW_LIMIT_COUNTER + ip;
-
-        if(Boolean.TRUE.equals(stringRedisTemplate.hasKey(Const.FLOW_LIMIT_BLOCK + ip)))
-            return false;
-        // 判断键是否存在，如果不存在，初始化并设置过期时间
-        Boolean isNewKey = stringRedisTemplate.opsForValue().setIfAbsent(counterKey, "1", period, TimeUnit.SECONDS);
-
-        // 如果键是新创建的，初始值为 1 并设置了过期时间
-        if (isNewKey != null && isNewKey) {
-            return true;
-        }
-
-        // 如果键已经存在，递增计数
-        Long requestCount = stringRedisTemplate.opsForValue().increment(counterKey);
-
-        // 检查请求次数是否超限
-        if (requestCount != null && requestCount < limit) {
-            return true;  // 请求次数未超限
-        }
-
-        RLock lock = redissonClient.getLock(ip.intern());
-        try {
-            // 尝试在指定时间内获取锁，比如 2 秒
-            if (!lock.tryLock()) {
-                log.warn("无法获取锁，IP: {}，可能操作正在进行中", ip);
+    /**
+     * 尝试对指定IP地址请求计数，如果被限制则无法继续访问
+     * @param address 请求IP地址
+     * @return 是否操作成功
+     */
+    private boolean tryCount(String address) {
+        synchronized (address.intern()) {
+            if(Boolean.TRUE.equals(stringRedisTemplate.hasKey(Const.FLOW_LIMIT_BLOCK + address)))
                 return false;
-            }
-            String blockKey = Const.FLOW_LIMIT_BLOCK + ip;
-            if(requestCount != null && requestCount >= limit){
-                stringRedisTemplate.opsForValue().set(blockKey, "", block, TimeUnit.SECONDS);
-                stringRedisTemplate.delete(counterKey);
-            }
-            return true;
-
-        }  finally {
-            if (lock != null && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            String counterKey = Const.FLOW_LIMIT_COUNTER + address;
+            String blockKey = Const.FLOW_LIMIT_BLOCK + address;
+            return utils.limitPeriodCheck(counterKey, blockKey, block, limit, period);
         }
     }
 
