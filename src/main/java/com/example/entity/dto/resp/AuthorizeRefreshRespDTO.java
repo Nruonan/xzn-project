@@ -11,6 +11,8 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class AuthorizeRefreshRespDTO {
+    String username;
+    String role;
     String access_token;
     String refresh_token;
     Date access_expire;

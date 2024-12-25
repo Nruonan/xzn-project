@@ -9,6 +9,8 @@ import lombok.Data;
  */
 @Data
 public class AuthorizeRespDTO {
+    String username;
+    String role;
     String access_token;
     String refresh_token;
     Date access_expire;

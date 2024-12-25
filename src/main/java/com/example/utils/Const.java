@@ -20,6 +20,7 @@ public class Const {
     public static final String FLOW_LIMIT_BLOCK = "xzn:flow:limit";
     public static final String FLOW_LIMIT_BLOCK_COUNTER = "xzn:flow:limit:counter";
     public static final String ROLE_DEFAULT = "user";
+    public static final String ROLE_ADMIN = "admin";
     public static final String ATTR_USER_ID = "userId";
 
     public static final String FORUM_WEATHER_CACHE = "xzn:weather:cache:";

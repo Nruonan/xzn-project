@@ -90,6 +90,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
     @Resource
     FollowMapper followMapper;
 
+
     @Override
     public AuthorizeRefreshRespDTO refreshToken(String refreshToken) {
         // 校验 token 是否有效
@@ -124,8 +125,8 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
         // 将时间倒退8个小时
         LocalDateTime newLocalDateTime = localDateTime.plusMinutes(8);
         date = Date.from(newLocalDateTime.atZone(ZoneId.systemDefault()).toInstant());
-
-        return new AuthorizeRefreshRespDTO(accessToken, refreshToken,date);
+        AccountRespDTO accountRespDTO = findAccountByNameOrEmail(user.getUsername());
+        return new AuthorizeRefreshRespDTO(accountRespDTO.getUsername(),accountRespDTO.getRole(),accessToken, refreshToken,date);
     }
 
 
