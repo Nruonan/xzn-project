@@ -53,6 +53,9 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = accountService.loadUserByUsername(username);
         // 查询用户账户信息
         AccountRespDTO accountRespDTO = accountService.findAccountByNameOrEmail(username);
+        if (accountRespDTO.isBanned()){
+            throw new BadCredentialsException("登陆失败，账户已被封禁!");
+        }
         // 创建JWT令牌
         String jwt = utils.createJwt(userDetails, username, accountRespDTO.getId());
         // 创建刷新令牌

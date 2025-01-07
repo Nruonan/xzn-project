@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.core.annotation.Order;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -47,7 +48,7 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
     JwtUtils utils;
 
     @Resource
-    UserContext context;
+    StringRedisTemplate stringRedisTemplate;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -60,16 +61,22 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
         if(jwt != null) {
             //开始解析成UserDetails对象，如果得到的是null说明解析失败，JWT有问题
             UserDetails user = utils.toUser(jwt);
-            //验证没有问题，那么就可以开始创建Authentication了，这里我们跟默认情况保持一致
-            //使用UsernamePasswordAuthenticationToken作为实体，填写相关用户信息进去
-            UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            //然后直接把配置好的Authentication塞给SecurityContext表示已经完成验证
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            // 将该用户jwt添加到请求头
-            request.setAttribute(Const.ATTR_USER_ID, utils.toId(jwt));
-            UserContext.setUser(new UserInfoDTO(utils.toId(jwt)));
+            // 判断是否被封禁
+            if (!stringRedisTemplate.hasKey(Const.BANNED_BLOCK + utils.toId(jwt))){
+                //验证没有问题，那么就可以开始创建Authentication了，这里我们跟默认情况保持一致
+                //使用UsernamePasswordAuthenticationToken作为实体，填写相关用户信息进去
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                //然后直接把配置好的Authentication塞给SecurityContext表示已经完成验证
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 将该用户jwt添加到请求头
+                request.setAttribute(Const.ATTR_USER_ID, utils.toId(jwt));
+                UserContext.setUser(new UserInfoDTO(utils.toId(jwt)));
+            }else{
+                utils.invalidateJwt(authorization);
+            }
+
         }
         try{
             // 触发http请求

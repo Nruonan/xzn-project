@@ -7,6 +7,7 @@ import com.example.entity.dao.WeatherDO;
 import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
+import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
 import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
@@ -14,6 +15,7 @@ import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
 import com.example.entity.dto.resp.TopicPreviewRespDTO;
 import com.example.entity.dto.resp.TopicTypeRespDTO;
+import com.example.service.AccountService;
 import com.example.service.TopicService;
 import com.example.service.WeatherService;
 import com.example.utils.Const;
@@ -50,6 +52,8 @@ public class ForumController {
     @Resource
     ControllerUtils utils;
 
+    @Resource
+    AccountService accountService;
 
     @GetMapping("/weather")
     public RestBean<WeatherDO> weather(double longitude, double latitude){
@@ -64,6 +68,10 @@ public class ForumController {
 
     @PostMapping("/create-topic")
     public RestBean<Void> createTopic(@Valid @RequestBody TopicCreateReqDTO requestParam, @RequestAttribute(Const.ATTR_USER_ID) int id){
+        AccountInfoRespDTO account = accountService.findAccountById(id);
+        if (account.isMute()){
+            return RestBean.failure(400,"您的账户已被禁言，无法发布新的主题!");
+        }
         return utils.messageHandle(() ->
             topicService.createTopic(requestParam,id));
     }
@@ -107,6 +115,10 @@ public class ForumController {
     @PostMapping("/add-comment")
     public RestBean<Void> addComment(@Valid @RequestBody AddCommentReqDTO requestParam,
                                      @RequestAttribute(Const.ATTR_USER_ID)int id){
+        AccountInfoRespDTO account = accountService.findAccountById(id);
+        if (account.isMute()){
+            return RestBean.failure(400,"您的账户已被禁言，无法发布新的回复!");
+        }
         return utils.messageHandle(() ->
             topicService.addComment(id,requestParam));
     }

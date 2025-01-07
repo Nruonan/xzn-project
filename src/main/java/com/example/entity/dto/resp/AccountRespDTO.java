@@ -17,4 +17,6 @@ public class AccountRespDTO {
     private String username;
     private String password;
     private String role;
+    private boolean mute;
+    private boolean banned;
 }
