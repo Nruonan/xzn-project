@@ -4,12 +4,20 @@ import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.example.entity.RestBean;
 import com.example.entity.dao.AccountDO;
+import com.example.entity.dao.AccountDetailsDO;
+import com.example.entity.dao.AccountPrivacyDO;
+import com.example.entity.dto.resp.AccountDetailsRespDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
+import com.example.entity.dto.resp.AccountPrivacyRespDTO;
 import com.example.entity.dto.resp.AccountRespDTO;
+import com.example.service.AccountDetailsService;
+import com.example.service.AccountPrivacyService;
 import com.example.service.AccountService;
 import jakarta.annotation.Resource;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,7 +31,11 @@ public class AccountAdminController {
 
     @Resource
     AccountService service;
+    @Resource
+    AccountDetailsService detailsService;
 
+    @Resource
+    AccountPrivacyService privacyService;
     /**
      * 获取账户列表信息
      * 该方法通过GET请求处理账户列表的请求，根据指定的页码和页面大小进行分页查询
@@ -51,5 +63,33 @@ public class AccountAdminController {
     
         // 返回包含查询结果的RestBean对象，表示操作成功
         return RestBean.success(object);
+    }
+
+    @GetMapping("/detail")
+    public RestBean<JSONObject> accountDetail(int id){
+        JSONObject object = new JSONObject();
+        object.put("detail", detailsService.findAccountDetailsById(id) );
+        object.put("privacy", privacyService.accountPrivacy(id));
+        return RestBean.success(object);
+    }
+
+    @PostMapping("/save")
+    public RestBean<Void> saveAccount(@RequestBody JSONObject object){
+        Integer id = object.getInteger("id");
+        AccountInfoRespDTO account = service.findAccountById(id);
+        AccountInfoRespDTO save = BeanUtil.copyProperties(object, AccountInfoRespDTO.class);
+        BeanUtil.copyProperties(save,account, "password", "registerTime");
+        AccountDO bean = BeanUtil.toBean(account, AccountDO.class);
+        service.saveOrUpdate(bean);
+        AccountDetailsRespDTO details = detailsService.findAccountDetailsById(id);
+        AccountDetailsRespDTO saveDetails = object.getJSONObject("detail").toJavaObject(AccountDetailsRespDTO.class);
+        BeanUtil.copyProperties(saveDetails, details);
+        detailsService.saveOrUpdate(BeanUtil.toBean(details, AccountDetailsDO.class));
+        AccountPrivacyRespDTO privacy = privacyService.accountPrivacy(id);
+        AccountPrivacyRespDTO savePrivacy = object.getJSONObject("privacy").toJavaObject(AccountPrivacyRespDTO.class);
+        BeanUtil.copyProperties(savePrivacy, privacy);
+        AccountPrivacyDO bean1 = BeanUtil.toBean(privacy, AccountPrivacyDO.class);
+        privacyService.saveOrUpdate(bean1);
+        return RestBean.success();
     }
 }

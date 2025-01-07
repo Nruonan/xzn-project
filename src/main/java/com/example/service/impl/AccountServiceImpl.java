@@ -182,7 +182,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, AccountDO> im
         String username = requestParam.getUsername();
         if(this.existsAccountByUsername(username)) return "该用户名已被他人使用，请重新更换";
         String password = passwordEncoder.encode(requestParam.getPassword());
-        AccountDO accountDO = new AccountDO(null,requestParam.getUsername(),password,null,email,Const.ROLE_DEFAULT,new Date());
+        AccountDO accountDO = new AccountDO(null,requestParam.getUsername(),password,null,email,Const.ROLE_DEFAULT,new Date(),false,false);
         if(!this.save(accountDO)){
             return "内部错误，注册失败";
         }else{

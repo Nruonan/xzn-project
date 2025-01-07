@@ -17,13 +17,23 @@ import lombok.NoArgsConstructor;
 @TableName("da_account_privacy")
 public class AccountPrivacyDO {
     @TableId(type = IdType.AUTO)
-    final Integer id;
+    Integer id;
     boolean phone = true;
     boolean email = true;
     boolean wx = true;
     boolean qq = true;
     boolean gender = true;
     boolean remind = false;
+
+    public AccountPrivacyDO(Integer id) {
+        this.id = id;
+        this.qq = false;
+        this.wx = false;
+        this.phone = false;
+        this.gender = false;
+        this.email = false;
+        this.remind = false;
+    }
 
     public String[] hiddenFields(){
         LinkedList<String> strings = new LinkedList<>();

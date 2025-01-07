@@ -23,4 +23,6 @@ public class AccountDO {
     private String email;
     private String role;
     private Date registerTime;
+    private boolean mute;
+    private boolean banned;
 }

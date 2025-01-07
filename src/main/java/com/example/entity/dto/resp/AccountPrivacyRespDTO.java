@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class AccountPrivacyRespDTO {
+    private int id;
     boolean phone = true;
     boolean email = true;
     boolean wx = true;

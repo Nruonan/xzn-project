@@ -19,4 +19,6 @@ public class AccountInfoRespDTO {
     private String role;
     String avatar;
     private Date registerTime;
+    private boolean mute;
+    private boolean banned;
 }
