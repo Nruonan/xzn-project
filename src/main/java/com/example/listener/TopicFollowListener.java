@@ -30,7 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 /**
@@ -48,17 +50,20 @@ public class TopicFollowListener {
     CacheUtils cacheUtils;
     @Resource
     StringRedisTemplate stringRedisTemplate;
-    @RabbitListener(queues = "topicFollowQueue")
+    @RabbitListener(queues = "topic_follow_queue")
     @RabbitHandler
-    public void receive(TopicDO topic){
-        cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
-        Set<String> followSet = stringRedisTemplate.opsForZSet().range(Const.FOLLOW_CACHE + topic.getUid(), 0, -1);
-        if (followSet.isEmpty()){
-            followSet = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
-                .eq(FollowDO::getFid, topic.getUid())).stream().map(followDO -> String.valueOf(followDO.getUid())).collect(Collectors.toSet());
-        }
-        // 如果是大V用户 发送自身邮箱
-        if (followSet.size() >= 5) {
+    public void receive(TopicDO topic,Channel channel,@Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
+        try {
+            // 业务处理逻辑
+            System.out.println("处理消息: " + topic);
+            cacheUtils.deleteCachePattern(Const.FORUM_TOPIC_PREVIEW_CACHE + "*");
+            Set<String> followSet = stringRedisTemplate.opsForZSet().range(Const.FOLLOW_CACHE + topic.getUid(), 0, -1);
+            if (followSet.isEmpty()){
+                followSet = followMapper.selectList(new LambdaQueryWrapper<>(FollowDO.class)
+                    .eq(FollowDO::getFid, topic.getUid())).stream().map(followDO -> String.valueOf(followDO.getUid())).collect(Collectors.toSet());
+            }
+            // 如果是大V用户 发送自身邮箱
+            if (followSet.size() >= 5) {
 //            InboxTopicDO build = InboxTopicDO.builder()
 //                .tid(topic.getId())
 //                .fid(topic.getUid())
@@ -69,8 +74,8 @@ public class TopicFollowListener {
 //                .content(topic.getContent())
 //                .build();
 //                        inboxTopicMapper.insert(build);
-            stringRedisTemplate.opsForZSet().add(Const.FEED_BIG_CACHE + topic.getUid(),String.valueOf(topic.getId()),System.currentTimeMillis());
-        } else {
+                stringRedisTemplate.opsForZSet().add(Const.FEED_BIG_CACHE + topic.getUid(),String.valueOf(topic.getId()),System.currentTimeMillis());
+            } else {
 //            List<InboxTopicDO> list = new ArrayList<>();
 //            followDOS.forEach(followDO -> {
 //                InboxTopicDO inboxTopicDO = InboxTopicDO.builder()
@@ -83,14 +88,21 @@ public class TopicFollowListener {
 //                    .time(topic.getTime())
 //                    .build();
 //                list.add(inboxTopicDO);
-              followSet.stream().forEach(fid -> {
-                  String key = Const.FEED_CACHE + fid;
-                  stringRedisTemplate.opsForZSet().add(key,String.valueOf(topic.getId()),System.currentTimeMillis());
-              });
+                followSet.stream().forEach(fid -> {
+                    String key = Const.FEED_CACHE + fid;
+                    stringRedisTemplate.opsForZSet().add(key,String.valueOf(topic.getId()),System.currentTimeMillis());
+                });
+            }
+            // 手动确认消息
+            channel.basicAck(tag, false);
+        } catch (Exception e) {
+            // 处理失败，拒绝消息（可配置重试或进入死信队列）
+            channel.basicNack(tag, false, true);
         }
+
     }
 
-    @RabbitListener(queues = "FollowQueue")
+    @RabbitListener(queues = "follow_queue")
     @RabbitHandler
     public String  receiveB(HashMap<String,Object> map){
         String key = map.get("key").toString();

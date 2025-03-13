@@ -28,6 +28,10 @@ spring:
     password: Nruonan996
     virtual-host: /
     port: 5672
+    # 开启生产者确认机制 (新版本配置)
+    publisher-confirm-type: correlated
+    # 开启消息回退（无法路由到队列时触发）
+    publisher-returns: true
     listener:
       simple:
         # 重试机制
@@ -41,7 +45,7 @@ spring:
     redis:
       port: 6379
       password: Nruonan996
-      host: 129.204.155.72
+      host:  localhost #129.204.155.72
   security:
     jwt:
      expire: 24
@@ -54,9 +58,10 @@ spring:
       order: -100
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://129.204.155.72:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+#    url: jdbc:mysql://129.204.155.72:3306/monitor?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/monitor
     username: root
-    password: zzh2002
+    password: feiwu #zzh2002
   minio:
     endpoint: 'http://129.204.155.72:9000'
     username: 'minio'

@@ -67,13 +67,13 @@ public class RabbitConfiguration {
     @Bean("topic_follow_queue")
     public Queue topicQueue(){
         return QueueBuilder
-            .durable("topicFollowQueue")
+            .durable("topic_follow_queue")
             .build();
     }
     @Bean("follow_queue")
     public Queue followQueue(){
         return QueueBuilder
-            .durable("FollowQueue")
+            .durable("follow_queue")
             .build();
     }
     @Bean("followExchange")

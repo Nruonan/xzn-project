@@ -1,6 +1,7 @@
 package com.example.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.UUID;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -60,6 +61,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.core.MessageDeliveryMode;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -139,7 +142,21 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         topic.setUid(uid);
         topic.setTime(new Date());
         if(this.save(topic)){
-            rabbitTemplate.convertAndSend("topic.direct","topic_follow",topic);
+            // 生成唯一消息ID用于追踪
+            CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
+
+            // 发送消息并配置持久化
+            rabbitTemplate.convertAndSend(
+                "topic.direct",
+                "topic_follow",
+                topic,
+                message -> {
+                    // 设置消息持久化（默认非持久化）
+                    message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                    return message;
+                },
+                correlationData
+            );
             return null;
         }else{
             return "内部错误，请联系管理员!";
