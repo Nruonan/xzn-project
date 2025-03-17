@@ -45,7 +45,7 @@ spring:
     redis:
       port: 6379
       password: Nruonan996
-      host:  localhost #129.204.155.72
+      host: 129.204.155.72
   security:
     jwt:
      expire: 24

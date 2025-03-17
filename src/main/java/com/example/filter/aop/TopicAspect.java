@@ -5,6 +5,7 @@ import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.utils.Const;
 import com.example.utils.FlowUtils;
+import com.github.houbb.sensitive.word.core.SensitiveWordHelper;
 import jakarta.annotation.Resource;
 import java.util.Set;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -91,10 +92,8 @@ public class TopicAspect {
         return joinPoint.proceed();
     }
     public boolean isContentValid(String content) {
-        for (String word : SENSITIVE_WORDS) {
-            if (content.contains(word)) {
-                return true;
-            }
+        if(SensitiveWordHelper.contains(content)){
+            return true;
         }
         return false;
     }
