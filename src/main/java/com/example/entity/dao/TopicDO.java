@@ -20,6 +20,7 @@ public class TopicDO{
     private String content;
     private Integer uid;
     private Integer type;
+    private Integer top;
     private Date time;
     private Double score;
 }
