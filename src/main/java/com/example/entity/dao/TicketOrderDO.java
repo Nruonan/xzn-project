@@ -13,7 +13,7 @@ import lombok.Data;
 @Data
 public class TicketOrderDO {
     @TableId
-    Long id;
+    String id;
     Integer uid;
     Integer tid;
     Long count;

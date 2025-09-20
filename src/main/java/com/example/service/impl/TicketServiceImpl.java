@@ -278,7 +278,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, TicketDO> imple
             // 设置订单时间
             TicketOrderDO ticketOrderDO = BeanUtil.toBean(requestParam, TicketOrderDO.class);
             ticketOrderDO.setTime(new Date());
-            ticketOrderDO.setId(IdUtil.getSnowflakeNextId());
+            ticketOrderDO.setId(IdUtil.getSnowflakeNextIdStr());
             // 生成订单
             try{
                 rabbitTemplate.convertAndSend("delete_ticket_count_queue",ticketOrderDO);
