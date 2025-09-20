@@ -45,6 +45,10 @@ public class HotTopicJobBean extends QuartzJobBean {
         List<Integer> tidList = Objects.requireNonNull(stringRedisTemplate.opsForSet().members("xzn:hot:topic")).stream()
             .map(Integer::parseInt)
             .toList();
+        if (tidList.isEmpty()) {
+            log.info("No hot topics found in Redis, skipping hot topic score update.");
+            return;
+        }
         List<TopicDO> topicDOS = topicMapper.selectList(
             new LambdaQueryWrapper<>(TopicDO.class).in(TopicDO::getId, tidList));
 
