@@ -4,11 +4,13 @@ import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.entity.RestBean;
+import com.example.entity.dao.TopicCommentDO;
 import com.example.entity.dao.TopicDO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.AccountInfoRespDTO;
 import com.example.entity.dto.resp.TopicInfoRespDTO;
 import com.example.service.AccountService;
+import com.example.service.TopicCommentService;
 import com.example.service.TopicService;
 import jakarta.annotation.Resource;
 import java.util.List;
@@ -31,6 +33,9 @@ public class ForumAdminController {
 
     @Resource
     TopicService service;
+
+    @Resource
+    TopicCommentService commentService;
 
     @GetMapping("/list")
     public RestBean<JSONObject> topicList(int page, int size){
@@ -67,6 +72,44 @@ public class ForumAdminController {
     @GetMapping("/remove")
     public RestBean<Void> removeById(@RequestParam("id") int id){
         service.removeById(id);
+        return RestBean.success();
+    }
+
+    @GetMapping("/comment/list")
+    public RestBean<JSONObject> topicCommentList(int page, int size){
+        // 创建一个空的JSONObject对象，用于存储查询结果
+        JSONObject object = new JSONObject();
+
+        // 调用service的page方法进行分页查询，并将查询结果转换为TopicCommentDO对象列表
+        List<TopicCommentDO> list = commentService.page(Page.of(page, size))
+            .getRecords()
+            .stream()
+            .map(a -> BeanUtil.toBean(a, TopicCommentDO.class))
+            .toList();
+
+        // 将总记录数放入JSONObject中
+        object.put("total", commentService.count());
+        // 将转换后的账户列表放入JSONObject中
+        object.put("list", list);
+
+        // 返回包含查询结果的RestBean对象，表示操作成功
+        return RestBean.success(object);
+    }
+
+    @GetMapping("/comment/detail")
+    public RestBean<TopicCommentDO> topicCommentDetail(@RequestParam("id") int id){
+        return RestBean.success(BeanUtil.toBean(commentService.getById(id), TopicCommentDO.class));
+    }
+
+    @PostMapping("/comment/update")
+    public RestBean<Void> updateComment(@RequestBody TopicCommentDO topicDO){
+        commentService.updateById(topicDO);
+        return RestBean.success();
+    }
+
+    @GetMapping("/comment/remove")
+    public RestBean<Void> removeCommentById(@RequestParam("id") int id){
+        commentService.removeById(id);
         return RestBean.success();
     }
 }
