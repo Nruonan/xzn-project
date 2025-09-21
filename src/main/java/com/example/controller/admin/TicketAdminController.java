@@ -2,6 +2,7 @@ package com.example.controller.admin;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.entity.RestBean;
 import com.example.entity.dao.TicketDO;
@@ -36,15 +37,29 @@ public class TicketAdminController {
     TicketOrderService orderService;
 
     @GetMapping("/list")
-    public RestBean<JSONObject> topicList(int page, int size){
+    public RestBean<JSONObject> ticketList(int page, int size, String searchName){
         // 创建一个空的JSONObject对象，用于存储查询结果
         JSONObject object = new JSONObject();
 
-        List<TicketDO> list = service.page(Page.of(page, size))
-            .getRecords()
-            .stream()
-            .map(a -> BeanUtil.toBean(a, TicketDO.class))
-            .toList();
+        List<TicketDO> list;
+        if (searchName != null && !searchName.isEmpty()) {
+            // 如果提供了搜索名称，则执行模糊查询
+            LambdaQueryWrapper<TicketDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 假设按票务名称进行模糊查询
+            queryWrapper.like(TicketDO::getDesc, searchName);
+            list = service.page(Page.of(page, size), queryWrapper)
+                .getRecords()
+                .stream()
+                .map(a -> BeanUtil.toBean(a, TicketDO.class))
+                .toList();
+        } else {
+            // 否则执行普通分页查询
+            list = service.page(Page.of(page, size))
+                .getRecords()
+                .stream()
+                .map(a -> BeanUtil.toBean(a, TicketDO.class))
+                .toList();
+        }
 
         // 将总记录数放入JSONObject中
         object.put("total", service.count());
@@ -80,15 +95,29 @@ public class TicketAdminController {
     }
 
     @GetMapping("/order/list")
-    public RestBean<JSONObject> orderList(int page, int size){
+    public RestBean<JSONObject> orderList(int page, int size, String searchOrderId){
         // 创建一个空的JSONObject对象，用于存储查询结果
         JSONObject object = new JSONObject();
 
-        List<TicketOrderDO> list = orderService.page(Page.of(page, size))
-            .getRecords()
-            .stream()
-            .map(a -> BeanUtil.toBean(a, TicketOrderDO.class))
-            .toList();
+        List<TicketOrderDO> list;
+        if (searchOrderId != null && !searchOrderId.isEmpty()) {
+            // 如果提供了搜索订单ID，则执行模糊查询
+            LambdaQueryWrapper<TicketOrderDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 假设按订单ID进行模糊查询
+            queryWrapper.like(TicketOrderDO::getTid, searchOrderId);
+            list = orderService.page(Page.of(page, size), queryWrapper)
+                .getRecords()
+                .stream()
+                .map(a -> BeanUtil.toBean(a, TicketOrderDO.class))
+                .toList();
+        } else {
+            // 否则执行普通分页查询
+            list = orderService.page(Page.of(page, size))
+                .getRecords()
+                .stream()
+                .map(a -> BeanUtil.toBean(a, TicketOrderDO.class))
+                .toList();
+        }
 
         // 将总记录数放入JSONObject中
         object.put("total", orderService.count());

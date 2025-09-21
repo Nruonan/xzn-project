@@ -2,6 +2,7 @@ package com.example.controller.admin;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.entity.RestBean;
 import com.example.entity.dao.TopicCommentDO;
@@ -38,13 +39,26 @@ public class ForumAdminController {
     TopicCommentService commentService;
 
     @GetMapping("/list")
-    public RestBean<JSONObject> topicList(int page, int size){
+    public RestBean<JSONObject> topicList(int page, int size, String searchTitle){
         // 创建一个空的JSONObject对象，用于存储查询结果
         JSONObject object = new JSONObject();
 
-        // 调用service的page方法进行分页查询，并将查询结果转换为TopicInfoRespDTO对象列表
-        List<TopicInfoRespDTO> list = service.page(Page.of(page, size))
-            .getRecords()
+        Page<TopicDO> pageResult;
+        // 根据是否有搜索条件执行不同的分页查询
+        if (searchTitle != null && !searchTitle.isEmpty()) {
+            // 创建查询条件包装器
+            LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 添加模糊查询条件，这里假设按评论内容进行搜索
+            queryWrapper.like(TopicDO::getTitle, searchTitle);
+            // 执行带条件的分页查询
+            pageResult = service.page(Page.of(page, size), queryWrapper);
+        } else {
+            // 执行普通分页查询
+            pageResult = service.page(Page.of(page, size));
+        }
+
+        // 将查询结果转换为TopicCommentDO对象列表
+        List<TopicInfoRespDTO> list = pageResult.getRecords()
             .stream()
             .map(a -> BeanUtil.toBean(a, TopicInfoRespDTO.class))
             .toList();
@@ -76,13 +90,26 @@ public class ForumAdminController {
     }
 
     @GetMapping("/comment/list")
-    public RestBean<JSONObject> topicCommentList(int page, int size){
+    public RestBean<JSONObject> topicCommentList(int page, int size, String searchTitle){
         // 创建一个空的JSONObject对象，用于存储查询结果
         JSONObject object = new JSONObject();
 
-        // 调用service的page方法进行分页查询，并将查询结果转换为TopicCommentDO对象列表
-        List<TopicCommentDO> list = commentService.page(Page.of(page, size))
-            .getRecords()
+        Page<TopicCommentDO> pageResult;
+        // 根据是否有搜索条件执行不同的分页查询
+        if (searchTitle != null && !searchTitle.isEmpty()) {
+            // 创建查询条件包装器
+            LambdaQueryWrapper<TopicCommentDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 添加模糊查询条件，这里假设按评论内容进行搜索
+            queryWrapper.like(TopicCommentDO::getContent, searchTitle);
+            // 执行带条件的分页查询
+            pageResult = commentService.page(Page.of(page, size), queryWrapper);
+        } else {
+            // 执行普通分页查询
+            pageResult = commentService.page(Page.of(page, size));
+        }
+
+        // 将查询结果转换为TopicCommentDO对象列表
+        List<TopicCommentDO> list = pageResult.getRecords()
             .stream()
             .map(a -> BeanUtil.toBean(a, TopicCommentDO.class))
             .toList();
@@ -112,4 +139,6 @@ public class ForumAdminController {
         commentService.removeById(id);
         return RestBean.success();
     }
+
+
 }
