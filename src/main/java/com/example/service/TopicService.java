@@ -47,5 +47,4 @@ public interface TopicService  extends IService<TopicDO> {
 
     List<TopicPreviewRespDTO> listTopicFollowByPage(int pageNumber, int id);
 
-    List<HotTopicRespDTO> hotTopic();
 }

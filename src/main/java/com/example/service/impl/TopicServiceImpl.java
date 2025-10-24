@@ -36,6 +36,7 @@ import com.example.mapper.InboxTopicMapper;
 import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
+import com.example.service.NoticeService;
 import com.example.service.NotificationService;
 import com.example.service.TopicService;
 import com.example.utils.CacheUtils;
@@ -106,11 +107,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     RabbitTemplate rabbitTemplate;
     @Resource
     TopicMapper topicMapper;
-    @Resource
-    InboxTopicMapper inboxTopicMapper;
 
-    @Resource
-    FollowMapper followMapper;
     private Set<Integer> types = null;
     @PostConstruct
     private void initTypes() {
@@ -259,17 +256,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     }
 
     @Override
-    public List<HotTopicRespDTO> hotTopic() {
-        List<HotTopicRespDTO> hotTopicRespDTOS = cacheUtils.takeListFormCache("xzn:hot:topics", HotTopicRespDTO.class);
-        if (hotTopicRespDTOS != null) return hotTopicRespDTOS;
-
-        List<TopicDO> topicDOS = baseMapper.selectList(Wrappers.<TopicDO>lambdaQuery().orderByDesc(TopicDO::getScore)).subList(0,5);
-        hotTopicRespDTOS = BeanUtil.copyToList(topicDOS, HotTopicRespDTO.class);
-        cacheUtils.saveListToCache("xzn:hot:topics",hotTopicRespDTOS, 60);
-        return hotTopicRespDTOS;
-    }
-
-    @Override
     public List<TopTopicRespDTO> listTopTopics() {
         List<TopicDO> topicDOS = baseMapper.selectList(Wrappers.<TopicDO>query().select("id","title","time")
             .eq("top",1));
@@ -314,31 +300,36 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         return BeanUtil.copyToList(topicDOS,TopicCollectRespDTO.class);
     }
 
-
-
     private boolean hasInteract(int tid, int uid, String type){
         String key = tid + ":" + uid;
+        // 优化Redis读取逻辑，直接获取指定key的值而不是获取所有entries
         if (stringRedisTemplate.opsForHash().hasKey(type, key)) {
-            return Boolean.parseBoolean(stringRedisTemplate.opsForHash().entries(type).get(key).toString());
+            Object value = stringRedisTemplate.opsForHash().get(type, key);
+            if (value != null) {
+                return Boolean.parseBoolean(value.toString());
+            }
         }
         return baseMapper.userInteractCount(tid,uid,type) > 0;
     }
 
     private final Map<String, Boolean> state = new HashMap<>();
     ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
+
     private void saveInteractSchedule(String type){
-        // 获取map是否有值
+        // 修复调度逻辑，确保只有一个任务在执行
         if (!state.getOrDefault(type,false)){
-            // 设置类型存入为true
             state.put(type, true);
             service.schedule(() ->{
-                // 存入数据到数据库
-                this.saveInteract(type);
-                // 删除
-                state.put(type,false);
+                try {
+                    this.saveInteract(type);
+                } finally {
+                    // 确保状态能被重置，即使saveInteract出现异常
+                    state.put(type,false);
+                }
             },3, TimeUnit.SECONDS);
         }
     }
+
     private void saveInteract(String type){
         // 上锁对点赞还是收藏
         synchronized (type.intern()) {
@@ -365,6 +356,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             stringRedisTemplate.delete(type);
         }
     }
+
     /**
      * @param requestParam 评论内容
      * @param uid 评论用户id

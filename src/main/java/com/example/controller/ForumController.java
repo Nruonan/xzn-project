@@ -133,8 +133,4 @@ public class ForumController {
             topicService.deleteComment(id,cid));
     }
 
-    @GetMapping("/hot-topic")
-    public RestBean<List<HotTopicRespDTO>> hotTopic(){
-        return RestBean.success(topicService.hotTopic());
-    }
 }
