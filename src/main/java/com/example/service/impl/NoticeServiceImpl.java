@@ -36,7 +36,7 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, NoticeDO>
         notice.setTitle(reqDTO.getTitle());
         notice.setContent(reqDTO.getContent());
         notice.setUid(authorId);
-        notice.setStatus(1); // 默认发布
+        notice.setStatus(reqDTO.getStatus());
         notice.setPublishTime(new Date());
         return this.save(notice);
     }
@@ -94,7 +94,7 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, NoticeDO>
     @Override
     public NoticeRespDTO getNoticeDetail(Integer id) {
         NoticeDO notice = this.getById(id);
-        if (notice == null || notice.getStatus() != 1) {
+        if (notice == null) {
             return null;
         }
 
@@ -102,11 +102,17 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, NoticeDO>
     }
 
     @Override
-    public List<NoticeRespDTO> getTopNotices(int limit) {
-        List<NoticeDO> notices = this.baseMapper.selectTopNotices(limit);
-        return notices.stream()
-            .map(this::convertToRespDTO)
-            .collect(Collectors.toList());
+    public NoticeRespDTO getNoticeOne() {
+        NoticeDO notice = this.baseMapper.selectOne(
+            new LambdaQueryWrapper<NoticeDO>()
+                .orderByDesc(NoticeDO::getPublishTime)
+                .eq(NoticeDO::getStatus, 1)
+                .last("limit 1")
+        );
+        if (notice == null) {
+            return null;
+        }
+        return convertToRespDTO(notice);
     }
 
     private NoticeRespDTO convertToRespDTO(NoticeDO notice) {
@@ -116,12 +122,10 @@ public class NoticeServiceImpl extends ServiceImpl<NoticeMapper, NoticeDO>
         // 设置作者信息
         AccountDO author = accountMapper.selectById(notice.getUid());
         if (author != null) {
-            NoticeRespDTO.User user = new NoticeRespDTO.User();
-            user.setId(author.getId());
-            user.setUsername(author.getUsername());
+            respDTO.setUsername(author.getUsername());
             // 如果有头像字段，也可以设置
-            user.setAvatar(author.getAvatar());
-            respDTO.setUser(user);
+            respDTO.setAvatar(author.getAvatar());
+            respDTO.setUid(author.getId());
         }
 
         return respDTO;

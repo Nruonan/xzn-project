@@ -40,7 +40,9 @@ public interface NoticeService extends IService<NoticeDO> {
     NoticeRespDTO getNoticeDetail(Integer id);
 
     /**
-     * 获取置顶公告
+     * 获取最新公告
      */
-    List<NoticeRespDTO> getTopNotices(int limit);
+    NoticeRespDTO getNoticeOne();
+
+
 }

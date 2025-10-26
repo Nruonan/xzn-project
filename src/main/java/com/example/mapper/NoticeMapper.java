@@ -21,11 +21,6 @@ public interface NoticeMapper extends BaseMapper<NoticeDO> {
      */
     IPage<NoticeDO> selectTopNotices(Page<NoticeDO> page);
 
-    /**
-     * 查询置顶公告
-     */
-    @Select("SELECT * FROM db_notice WHERE status = 2 ORDER BY  publish_time DESC LIMIT #{limit}")
-    java.util.List<NoticeDO> selectTopNotices(@Param("limit") int limit);
 }
 
 

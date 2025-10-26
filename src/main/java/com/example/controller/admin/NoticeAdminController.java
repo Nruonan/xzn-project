@@ -6,10 +6,7 @@ import com.example.entity.dto.req.NoticeCreateReqDTO;
 import com.example.entity.dto.resp.NoticeRespDTO;
 import com.example.utils.Const;
 import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import com.example.entity.dto.req.NoticeCreateReqDTO;
-import com.example.entity.dto.resp.NoticeRespDTO;
 import com.example.entity.dto.req.NoticeUpdateReqDTO;
 import com.example.service.NoticeService;
 
@@ -17,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/notice")
-public class NoticeController {
+public class NoticeAdminController {
 
     @Resource
     private NoticeService noticeService;
@@ -66,11 +63,4 @@ public class NoticeController {
         return RestBean.success(noticeService.getNoticeDetail(id));
     }
 
-    /**
-     * 获取置顶公告列表
-     */
-    @GetMapping("/top")
-    public RestBean<List<NoticeRespDTO>> getTopNotices(@RequestParam(defaultValue = "5") int limit) {
-        return RestBean.success(noticeService.getTopNotices(limit));
-    }
 }

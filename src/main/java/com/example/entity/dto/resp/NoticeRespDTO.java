@@ -12,11 +12,7 @@ public class NoticeRespDTO {
     private String content;
     private Date publishTime;
     private Integer status;
-    private User user;
-    @Data
-    public static class User {
-        private Integer id;
-        private String username;
-        private String avatar;
-    }
+    private Integer uid;
+    private String username;
+    private String avatar;
 }
