@@ -96,6 +96,8 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Resource
     AccountPrivacyMapper accountPrivacyMapper;
 
+    @Resource
+    NotificationService notificationService;
 
     @Resource
     StringRedisTemplate stringRedisTemplate;
@@ -290,6 +292,25 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             synchronized (type.intern()){
                 stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
                 this.saveInteractSchedule(type);
+            }
+        }
+        if (state) {
+            TopicDO topicDO = topicMapper.selectById(interact.getTid());
+            if (topicDO == null){
+                return;
+            }
+            AccountDO accountDO = accountMapper.selectById(interact.getUid());
+            if (accountDO == null){
+                return;
+            }
+            if (interact.getType().equals("collect")){
+                notificationService.addNotification(topicDO.getUid(),"您的帖子有新的收藏",
+                    accountDO.getUsername() + "收藏了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
+                    "success","/index/topic-detail/" + interact.getTid());
+            } else {
+                notificationService.addNotification(topicDO.getUid(),"您的帖子有新的点赞",
+                    accountDO.getUsername() + "点赞了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
+                    "success","/index/topic-detail/" + interact.getTid());
             }
         }
     }
