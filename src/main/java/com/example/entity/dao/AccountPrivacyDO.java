@@ -23,7 +23,6 @@ public class AccountPrivacyDO {
     boolean wx = true;
     boolean qq = true;
     boolean gender = true;
-    boolean remind = false;
 
     public AccountPrivacyDO(Integer id) {
         this.id = id;
@@ -32,7 +31,6 @@ public class AccountPrivacyDO {
         this.phone = false;
         this.gender = false;
         this.email = false;
-        this.remind = false;
     }
 
     public String[] hiddenFields(){
