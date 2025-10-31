@@ -12,7 +12,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
-import com.example.entity.dao.FollowDO;
 import com.example.entity.dao.InboxTopicDO;
 import com.example.entity.dao.Interact;
 import com.example.entity.dao.TopicCommentDO;
@@ -22,7 +21,6 @@ import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
 import com.example.entity.dto.resp.CommentRespDTO.User;
-import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -31,12 +29,9 @@ import com.example.entity.dto.resp.TopicTypeRespDTO;
 import com.example.mapper.AccountDetailsMapper;
 import com.example.mapper.AccountMapper;
 import com.example.mapper.AccountPrivacyMapper;
-import com.example.mapper.FollowMapper;
-import com.example.mapper.InboxTopicMapper;
 import com.example.mapper.TopicCommentMapper;
 import com.example.mapper.TopicMapper;
 import com.example.mapper.TopicTypeMapper;
-import com.example.service.NoticeService;
 import com.example.service.NotificationService;
 import com.example.service.TopicService;
 import com.example.utils.CacheUtils;
@@ -44,29 +39,33 @@ import com.example.utils.Const;
 import com.example.utils.FlowUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RedissonClient;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 /**
@@ -173,6 +172,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             .eq(TopicDO::getUid,uid)
             .eq(TopicDO::getId,requestParam.getId())
             .set(TopicDO::getTitle,requestParam.getTitle())
+            .set(TopicDO::getStatus, requestParam.getStatus())
             .set(TopicDO::getContent,requestParam.getContent().toJSONString())
             .set(TopicDO::getType,requestParam.getType());
         // TODO 修改帖子需要通知粉丝？
@@ -190,9 +190,13 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         Page<TopicDO> page = new Page<>(pageNumber , 10);
 
         if (type == 0){
-            baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class).orderByDesc(TopicDO::getTime));
+            baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class)
+                    .eq(TopicDO::getStatus, 1)
+                .orderByDesc(TopicDO::getTime));
         }else{
-            baseMapper.selectPage(page,Wrappers.lambdaQuery(TopicDO.class).eq(TopicDO::getType,type).orderByDesc(TopicDO::getTime));
+            baseMapper.selectPage(page,Wrappers.lambdaQuery(TopicDO.class).eq(TopicDO::getType,type)
+                .eq(TopicDO::getStatus, 1)
+                .orderByDesc(TopicDO::getTime));
         }
 
         List<TopicDO> topics = page.getRecords();
@@ -242,6 +246,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 //        topics.addAll(page.getRecords());
         topicMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class)
             .in(TopicDO::getId, tidList)
+            .eq(TopicDO::getStatus, 1)
             .orderByDesc(TopicDO::getTime));
         List<TopicDO> topics = page.getRecords();
 //        topics = topics.stream().sorted(Comparator.comparing(InboxTopicDO::getTime).reversed()).toList();
@@ -260,6 +265,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
     @Override
     public List<TopTopicRespDTO> listTopTopics() {
         List<TopicDO> topicDOS = baseMapper.selectList(Wrappers.<TopicDO>query().select("id","title","time")
+            .eq("status", 1)
             .eq("top",1));
         return topicDOS.stream().map(topic -> {
             return BeanUtil.toBean(topic, TopTopicRespDTO.class);
@@ -284,43 +290,6 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
             .eq("root",-1)));
         return topicDetailRespDTO;
     }
-
-    @Override
-    public void interact(Interact interact, boolean state) {
-        if (!flowUtils.limitPeriodCounterCheck("xzn:interact:ban"+interact.getUid(), 2, 1800)){
-            String type = interact.getType();
-            synchronized (type.intern()){
-                stringRedisTemplate.opsForHash().put(type,interact.toKey(),Boolean.toString(state));
-                this.saveInteractSchedule(type);
-            }
-        }
-        if (state) {
-            TopicDO topicDO = topicMapper.selectById(interact.getTid());
-            if (topicDO == null){
-                return;
-            }
-            AccountDO accountDO = accountMapper.selectById(interact.getUid());
-            if (accountDO == null){
-                return;
-            }
-            if (interact.getType().equals("collect")){
-                notificationService.addNotification(topicDO.getUid(),"您的帖子有新的收藏",
-                    accountDO.getUsername() + "收藏了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
-                    "success","/index/topic-detail/" + interact.getTid());
-            } else {
-                notificationService.addNotification(topicDO.getUid(),"您的帖子有新的点赞",
-                    accountDO.getUsername() + "点赞了你发表的主题: "+topicDO.getTitle()+"，快去看看吧!",
-                    "success","/index/topic-detail/" + interact.getTid());
-            }
-        }
-    }
-
-    @Override
-    public List<TopicCollectRespDTO> getCollects(int id) {
-        List<TopicDO> topicDOS = baseMapper.collectTopics(id);
-        return BeanUtil.copyToList(topicDOS,TopicCollectRespDTO.class);
-    }
-
     private boolean hasInteract(int tid, int uid, String type){
         String key = tid + ":" + uid;
         // 优化Redis读取逻辑，直接获取指定key的值而不是获取所有entries
@@ -332,50 +301,216 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         }
         return baseMapper.userInteractCount(tid,uid,type) > 0;
     }
+    // 使用ConcurrentHashMap管理任务状态，更安全
+    private final Map<String, Boolean> runningTasks = new ConcurrentHashMap<>();
 
-    private final Map<String, Boolean> state = new HashMap<>();
-    ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
+    // 定时任务执行器
+    private final ScheduledExecutorService scheduler =
+        Executors.newScheduledThreadPool(2, r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        });
 
-    private void saveInteractSchedule(String type){
-        // 修复调度逻辑，确保只有一个任务在执行
-        if (!state.getOrDefault(type,false)){
-            state.put(type, true);
-            service.schedule(() ->{
-                try {
-                    this.saveInteract(type);
-                } finally {
-                    // 确保状态能被重置，即使saveInteract出现异常
-                    state.put(type,false);
-                }
-            },3, TimeUnit.SECONDS);
+    @Override
+    public void interact(Interact interact, boolean state) {
+        try {
+            // 1. 检查限流（保持原有逻辑）
+            if (!flowUtils.limitPeriodCounterCheck("xzn:interact:ban"+interact.getUid(), 2, 1800)) {
+                return;
+            }
+
+            // 2. 立即更新Redis（用于前端快速反馈）
+            String key = interact.toKey();
+            stringRedisTemplate.opsForHash().put(interact.getType(), key, Boolean.toString(state));
+
+            // 3. 异步保存到数据库
+            scheduleSaveToDatabase(interact, state);
+
+            // 4. 如果是点赞/收藏操作，发送通知（异步）
+            if (state) {
+                CompletableFuture.runAsync(() -> sendNotification(interact));
+            }
+
+        } catch (Exception e) {
+            log.error("点赞收藏操作失败 - uid:{}, tid:{}, type:{}, state:{}",
+                interact.getUid(), interact.getTid(), interact.getType(), state, e);
         }
     }
 
-    private void saveInteract(String type){
-        // 上锁对点赞还是收藏
-        synchronized (type.intern()) {
-            // 创建两个链表接受数据
-            List<Interact> check = new LinkedList<>();
-            List<Interact> uncheck = new LinkedList<>();
-            stringRedisTemplate.opsForHash().entries(type).forEach((k, v) -> {
-                // 从redis中获取数据
-                if (Boolean.parseBoolean(v.toString())) {
-                    // 根据bool值添加到相应的链表
-                    check.add(Interact.parseInteract(k.toString(), type));
-                } else {
-                    uncheck.add(Interact.parseInteract(k.toString(), type));
+    private void scheduleSaveToDatabase(Interact interact, boolean state) {
+        String type = interact.getType();
+
+        // 使用原子操作确保只有一个任务在执行
+        if (runningTasks.putIfAbsent(type, Boolean.TRUE) == null) {
+            scheduler.schedule(() -> {
+                try {
+                    saveToDatabase(type);
+                } finally {
+                    // 无论成功失败都要清理状态
+                    runningTasks.remove(type);
+                }
+            }, 2, TimeUnit.SECONDS);
+        }
+        // 如果任务已在运行，新操作会被下一次调度处理
+    }
+
+    private void saveToDatabase(String type) {
+        log.info("开始保存{}数据到数据库", type);
+
+        try {
+            // 获取Redis中的所有数据
+            Map<Object, Object> redisData = stringRedisTemplate.opsForHash().entries(type);
+
+            if (redisData.isEmpty()) {
+                log.info("{}没有数据需要保存", type);
+                return;
+            }
+
+            // 分离需要保存和删除的数据
+            List<Interact> toSave = new ArrayList<>();
+            List<Interact> toDelete = new ArrayList<>();
+
+            redisData.forEach((k, v) -> {
+                try {
+                    Interact interact = Interact.parseInteract(k.toString(), type);
+                    if (Boolean.parseBoolean(v.toString())) {
+                        toSave.add(interact);
+                    } else {
+                        toDelete.add(interact);
+                    }
+                } catch (Exception e) {
+                    log.error("解析数据失败: key={}, value={}", k, v, e);
                 }
             });
-            // 存在数据库
-            if (!check.isEmpty()) {
-                baseMapper.addInteract(check, type);
+
+            // 批量保存到数据库
+            if (!toSave.isEmpty()) {
+                baseMapper.addInteract(toSave, type);
+                log.info("成功保存{}条{}数据", toSave.size(), type);
             }
-            if (!uncheck.isEmpty()) {
-                baseMapper.deleteInteract(uncheck, type);
+
+            if (!toDelete.isEmpty()) {
+                baseMapper.deleteInteract(toDelete, type);
+                log.info("成功删除{}条{}数据", toDelete.size(), type);
             }
-            // 删除redis数据
+
+            // 清空Redis数据
             stringRedisTemplate.delete(type);
+            log.info("{}数据保存完成，已清空Redis", type);
+
+        } catch (Exception e) {
+            log.error("保存{}数据到数据库失败", type, e);
+            // 这里可以考虑将数据保存到本地文件或备用数据库进行补偿
+            saveFailedDataToFile(type);
+            throw e; // 重新抛出异常，让上层处理
         }
+    }
+
+    private void saveFailedDataToFile(String type) {
+        try {
+            Map<Object, Object> redisData = stringRedisTemplate.opsForHash().entries(type);
+            String fileName = String.format("/tmp/interact_failed_%s_%d.txt", type, System.currentTimeMillis());
+
+            try (PrintWriter writer = new PrintWriter(new FileWriter(fileName))) {
+                redisData.forEach((k, v) -> {
+                    writer.println(k + ":" + v);
+                });
+            }
+            log.warn("失败数据已保存到文件: {}", fileName);
+        } catch (Exception e) {
+            log.error("保存失败数据到文件失败", e);
+        }
+    }
+
+    private void sendNotification(Interact interact) {
+        try {
+            TopicDO topicDO = topicMapper.selectById(interact.getTid());
+            if (topicDO == null) {
+                log.warn("主题不存在: tid={}", interact.getTid());
+                return;
+            }
+
+            AccountDO accountDO = accountMapper.selectById(interact.getUid());
+            if (accountDO == null) {
+                log.warn("用户不存在: uid={}", interact.getUid());
+                return;
+            }
+
+            String title, message;
+            if ("collect".equals(interact.getType())) {
+                title = "您的帖子有新的收藏";
+                message = accountDO.getUsername() + "收藏了你发表的主题: " + topicDO.getTitle() + "，快去看看吧!";
+            } else {
+                title = "您的帖子有新的点赞";
+                message = accountDO.getUsername() + "点赞了你发表的主题: " + topicDO.getTitle() + "，快去看看吧!";
+            }
+
+            notificationService.addNotification(
+                topicDO.getUid(),
+                title,
+                message,
+                "success",
+                "/index/topic-detail/" + interact.getTid()
+            );
+
+        } catch (Exception e) {
+            log.error("发送通知失败", e);
+        }
+    }
+
+    // 添加手动补偿方法，用于修复数据不一致问题
+    @Scheduled(fixedDelay = 300000) // 每5分钟执行一次
+    public void compensateData() {
+        log.info("开始数据补偿检查");
+
+        for (String type : Arrays.asList("like", "collect")) {
+            try {
+                compensateDataForType(type);
+            } catch (Exception e) {
+                log.error("补偿{}数据失败", type, e);
+            }
+        }
+    }
+
+    private void compensateDataForType(String type) {
+        // 1. 获取Redis中的数据
+        Map<Object, Object> redisData = stringRedisTemplate.opsForHash().entries(type);
+
+        if (redisData.isEmpty()) {
+            return;
+        }
+
+        // 2. 检查数据库中是否存在这些记录
+        for (Map.Entry<Object, Object> entry : redisData.entrySet()) {
+            try {
+                Interact interact = Interact.parseInteract(entry.getKey().toString(), type);
+                boolean shouldExist = Boolean.parseBoolean(entry.getValue().toString());
+
+                boolean existsInDb = baseMapper.userInteractCount(interact.getTid(), interact.getUid(), type) > 0;
+
+                // 如果Redis中标记为存在，但数据库中不存在，则插入
+                if (shouldExist && !existsInDb) {
+                    log.info("补偿数据: 插入{}记录 tid={}, uid={}", type, interact.getTid(), interact.getUid());
+                    baseMapper.addInteract(Collections.singletonList(interact), type);
+                }
+                // 如果Redis中标记为不存在，但数据库中存在，则删除
+                else if (!shouldExist && existsInDb) {
+                    log.info("补偿数据: 删除{}记录 tid={}, uid={}", type, interact.getTid(), interact.getUid());
+                    baseMapper.deleteInteract(Collections.singletonList(interact), type);
+                }
+
+            } catch (Exception e) {
+                log.error("补偿数据处理失败: key={}", entry.getKey(), e);
+            }
+        }
+    }
+
+
+    @Override
+    public List<TopicCollectRespDTO> getCollects(int id) {
+        List<TopicDO> topicDOS = baseMapper.collectTopics(id);
+        return BeanUtil.copyToList(topicDOS,TopicCollectRespDTO.class);
     }
 
     /**
@@ -431,6 +566,30 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         }
         return comments;
     }
+
+    @Override
+    public String deleteDraft(int id, int uid) {
+        LambdaQueryWrapper<TopicDO> wrapper = Wrappers.lambdaQuery(TopicDO.class)
+            .eq(TopicDO::getId, id)
+            .eq(TopicDO::getUid, uid)
+            .eq(TopicDO::getStatus, 0); // 确保只删除草稿
+
+        int update = topicMapper.delete(wrapper);
+        if (update > 0) return null;
+        else return "删除失败，请联系管理员!";
+    }
+
+    @Override
+    public Page<TopicDO> listDraftsByUid(int uid, int page,  int size) {
+        Page<TopicDO> pageDO = Page.of(page,size);
+        LambdaQueryWrapper<TopicDO> queryWrapper = Wrappers.lambdaQuery(TopicDO.class)
+            .eq(TopicDO::getUid, uid)
+            .eq(TopicDO::getStatus, 0)
+            .orderByDesc(TopicDO::getTime); // 按时间升序排序
+        topicMapper.selectPage(pageDO, queryWrapper);
+        return pageDO;
+    }
+
     private List<CommentRespDTO> getChildren(int cid){
         LambdaQueryWrapper<TopicCommentDO> queryWrapper = Wrappers.lambdaQuery(TopicCommentDO.class)
             .eq(TopicCommentDO::getRoot,cid)

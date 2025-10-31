@@ -18,4 +18,5 @@ public class TopicCreateReqDTO {
     private JSONObject content;
     @Min(1)
     private int type;
+    private int status;
 }

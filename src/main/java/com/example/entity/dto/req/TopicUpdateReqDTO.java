@@ -24,4 +24,5 @@ public class TopicUpdateReqDTO {
     String title;
 
     JSONObject content;
+    int status;
 }

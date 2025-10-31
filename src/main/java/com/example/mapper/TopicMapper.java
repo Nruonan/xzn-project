@@ -19,7 +19,7 @@ import org.apache.ibatis.annotations.Select;
 public interface TopicMapper extends BaseMapper<TopicDO> {
     @Insert("""
          <script>
-            insert ignore into db_topic_interact_${type} values
+            insert into db_topic_interact_${type} values
             <foreach collection = "interacts" item="item" separator=",">
                 (#{item.tid},#{item.uid},#{item.time})
             </foreach>
@@ -59,4 +59,10 @@ public interface TopicMapper extends BaseMapper<TopicDO> {
         </script>
     """)
     List<TopicDO> collectTopics(int uid);
+        @Select("""
+        <script>
+            select * from db_topic where uid = #{uid} and status = 0
+        </script>
+    """)
+    List<TopicDO> getDraftsByUid(int uid);
 }

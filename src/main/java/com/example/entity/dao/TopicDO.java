@@ -3,6 +3,7 @@ package com.example.entity.dao;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import io.swagger.v3.oas.models.security.SecurityScheme.In;
 import java.math.BigDecimal;
 import java.util.Date;
 import lombok.Data;
@@ -23,4 +24,5 @@ public class TopicDO{
     private Integer top;
     private Date time;
     private Double score;
+    private Integer status; // 0 表示草稿，1 表示已发布
 }

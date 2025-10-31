@@ -49,12 +49,17 @@ public class ForumAdminController {
             // 创建查询条件包装器
             LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
             // 添加模糊查询条件，这里假设按评论内容进行搜索
+            queryWrapper.eq(TopicDO::getStatus, 1);
             queryWrapper.like(TopicDO::getTitle, searchTitle);
             // 执行带条件的分页查询
             pageResult = service.page(Page.of(page, size), queryWrapper);
         } else {
             // 执行普通分页查询
-            pageResult = service.page(Page.of(page, size));
+            // 创建查询条件包装器
+            LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(TopicDO::getStatus, 1);
+            // 执行带条件的分页查询
+            pageResult = service.page(Page.of(page, size), queryWrapper);
         }
 
         // 将查询结果转换为TopicCommentDO对象列表
