@@ -104,11 +104,10 @@ public class ForumController {
     }
 
     @GetMapping("/interact")
-    public RestBean<Void> interact(@RequestParam @Min(0) int tid,
+    public RestBean<String> interact(@RequestParam @Min(0) int tid,
         @RequestParam @Pattern(regexp = "(like|collect)") String type,
         @RequestParam boolean state, @RequestAttribute(Const.ATTR_USER_ID) int id) {
-        topicService.interact(new Interact(tid, id, new Date(), type), state);
-        return RestBean.success();
+        return RestBean.success(topicService.interact(new Interact(tid, id, new Date(), type), state));
     }
 
     @GetMapping("/collects")
@@ -159,5 +158,10 @@ public class ForumController {
         @RequestAttribute(Const.ATTR_USER_ID) int uid) {
         return utils.messageHandle(() ->
             topicService.deleteDraft(id, uid));
+    }
+
+    @GetMapping("/hot-topics")
+    public RestBean<List<HotTopicRespDTO>> hotTopics() {
+        return RestBean.success(topicService.hotTopics());
     }
 }

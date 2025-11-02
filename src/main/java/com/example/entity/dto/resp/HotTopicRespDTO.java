@@ -13,6 +13,10 @@ import lombok.Data;
 @AllArgsConstructor
 public class HotTopicRespDTO {
     int id;
-    int type;
     String title;
+    Date time;
+    Integer uid;
+    String username;
+    String avatar;
+    Long score;
 }

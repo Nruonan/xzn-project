@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.controller.exception.ServiceException;
 import com.example.entity.dao.AccountDO;
 import com.example.entity.dao.AccountDetailsDO;
 import com.example.entity.dao.AccountPrivacyDO;
@@ -21,6 +22,7 @@ import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
 import com.example.entity.dto.resp.CommentRespDTO.User;
+import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -137,6 +139,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         }
         TopicDO topic = BeanUtil.toBean(requestParam, TopicDO.class);
         topic.setContent(requestParam.getContent().toJSONString());
+        topic.setScore(0L);
         topic.setUid(uid);
         topic.setTime(new Date());
         if(this.save(topic)){
@@ -313,11 +316,11 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         });
 
     @Override
-    public void interact(Interact interact, boolean state) {
+    public String interact(Interact interact, boolean state) {
         try {
             // 1. 检查限流（保持原有逻辑）
-            if (!flowUtils.limitPeriodCounterCheck("xzn:interact:ban"+interact.getUid(), 2, 1800)) {
-                return;
+            if (!flowUtils.limitPeriodCounterCheck("xzn:interact:ban"+interact.getUid(), 3, 60)) {
+                return "操作过于频繁，请稍后再试";
             }
 
             // 2. 立即更新Redis（用于前端快速反馈）
@@ -329,12 +332,44 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
 
             // 4. 如果是点赞/收藏操作，发送通知（异步）
             if (state) {
-                CompletableFuture.runAsync(() -> sendNotification(interact));
+                CompletableFuture.runAsync(() -> {
+                    sendNotification(interact);
+                });
             }
 
+            // 5. 更新帖子分数（只在发帖7天内允许操作）
+            TopicDO topic = baseMapper.selectById(interact.getTid());
+            if (topic != null) {
+                Date postTime = topic.getTime();
+                Date now = new Date();
+                long diffInMillies = Math.abs(now.getTime() - postTime.getTime());
+                long diffInDays = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+
+                // 只在发帖7天内更新分数
+                if (diffInDays <= 7) {
+                    LambdaUpdateWrapper<TopicDO> updateWrapper = new LambdaUpdateWrapper<>();
+                    updateWrapper.eq(TopicDO::getId, interact.getTid());
+                    if (state) {
+                        updateWrapper.setSql("score = score + 1");
+                    } else {
+                        updateWrapper.setSql("score = score - 1");
+                    }
+                    baseMapper.update(null, updateWrapper);
+                }
+            }
         } catch (Exception e) {
             log.error("点赞收藏操作失败 - uid:{}, tid:{}, type:{}, state:{}",
                 interact.getUid(), interact.getTid(), interact.getType(), state, e);
+            return "操作失败";
+        }
+        if (interact.getType().equals("like") && state){
+            return "点赞成功";
+        } else if (interact.getType().equals("collect") && state){
+            return "收藏成功";
+        } else if (interact.getType().equals("like") && !state){
+            return "取消点赞成功";
+        } else{
+            return "取消收藏成功";
         }
     }
 
@@ -537,6 +572,24 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         hashMap.put("bean",JSONObject.toJSONString(bean));
         // 利用消息队列发送
         rabbitTemplate.convertAndSend("notificationComment",hashMap);
+
+
+        TopicDO topic = baseMapper.selectById(requestParam.getTid());
+        if (topic != null) {
+            Date postTime = topic.getTime();
+            Date now = new Date();
+            long diffInMillies = Math.abs(now.getTime() - postTime.getTime());
+            long diffInDays = TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+
+            // 只在发帖7天内更新分数
+            if (diffInDays <= 7) {
+                LambdaUpdateWrapper<TopicDO> updateWrapper = new LambdaUpdateWrapper<>();
+                updateWrapper.eq(TopicDO::getId, requestParam.getTid());
+                updateWrapper.setSql("score = score + 1");
+                baseMapper.update(null, updateWrapper);
+            }
+        }
+
         return null;
     }
 
@@ -577,6 +630,26 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         int update = topicMapper.delete(wrapper);
         if (update > 0) return null;
         else return "删除失败，请联系管理员!";
+    }
+
+    @Override
+    public List<HotTopicRespDTO> hotTopics() {
+        Page<TopicDO> pageDO = Page.of(1,10);
+        LambdaQueryWrapper<TopicDO> queryWrapper = Wrappers.lambdaQuery(TopicDO.class)
+            .ge(TopicDO::getTime, new Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)) // 最近一周
+            .orderByDesc(TopicDO::getScore);
+        topicMapper.selectPage(pageDO, queryWrapper);
+        if (pageDO.getRecords().isEmpty()) return Collections.emptyList();
+        List<HotTopicRespDTO> hotTopicRespDTOS = new ArrayList<>();
+        for (TopicDO record : pageDO.getRecords()) {
+            AccountDO accountDO = accountMapper.selectById(record.getUid());
+            HotTopicRespDTO hotTopicRespDTO = BeanUtil.toBean(record, HotTopicRespDTO.class);
+            hotTopicRespDTO.setUsername(accountDO.getUsername());
+            hotTopicRespDTO.setAvatar(accountDO.getAvatar());
+            hotTopicRespDTOS.add(hotTopicRespDTO);
+        }
+
+        return hotTopicRespDTOS;
     }
 
     @Override
@@ -654,25 +727,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         bean.setImages(images);
         return bean;
     }
-    // 解析帖子
-    private TopicPreviewRespDTO resolveToPreviewFollow(InboxTopicDO topicDO){
-        // 获取帖子
-        TopicPreviewRespDTO bean = new TopicPreviewRespDTO();
-        // 得到user属性
-        BeanUtils.copyProperties(accountMapper.selectById(topicDO.getFid()),bean);
-        // 得到帖子属性
-        BeanUtils.copyProperties(topicDO, bean);
-        bean.setLike(baseMapper.interactCount(topicDO.getTid(),"like"));
-        bean.setCollect(baseMapper.interactCount(topicDO.getTid(),"collect"));
-        // 获取点赞收藏
-        List<String> images = new ArrayList<>();
-        StringBuilder previewText = new StringBuilder();
-        JSONArray ops = JSONObject.parseObject(topicDO.getContent()).getJSONArray("ops");
-        this.shortContent(ops,previewText,obj->images.add(obj.toString()));
-        bean.setText(previewText.length() > 300 ? previewText.substring(0, 300) :  previewText.toString());
-        bean.setImages(images);
-        return bean;
-    }
+
     /**
      * @param object json字数
      * 校验字数是否小于20000

@@ -8,6 +8,7 @@ import com.example.entity.dto.req.AddCommentReqDTO;
 import com.example.entity.dto.req.TopicCreateReqDTO;
 import com.example.entity.dto.req.TopicUpdateReqDTO;
 import com.example.entity.dto.resp.CommentRespDTO;
+import com.example.entity.dto.resp.HotTopicRespDTO;
 import com.example.entity.dto.resp.TopTopicRespDTO;
 import com.example.entity.dto.resp.TopicCollectRespDTO;
 import com.example.entity.dto.resp.TopicDetailRespDTO;
@@ -34,7 +35,7 @@ public interface TopicService  extends IService<TopicDO> {
 
     List<TopTopicRespDTO> listTopTopics();
 
-    void interact(Interact interact, boolean state);
+    String interact(Interact interact, boolean state);
 
     List<TopicCollectRespDTO> getCollects(int id);
 
@@ -51,4 +52,6 @@ public interface TopicService  extends IService<TopicDO> {
     Page<TopicDO> listDraftsByUid(int id, int page, int size);
 
     String deleteDraft(int id, int uid);
+
+    List<HotTopicRespDTO> hotTopics();
 }
