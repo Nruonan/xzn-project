@@ -39,13 +39,24 @@ public class ForumAdminController {
     TopicCommentService commentService;
 
     @GetMapping("/list")
-    public RestBean<JSONObject> topicList(int page, int size, String searchTitle){
+    public RestBean<JSONObject> topicList(@RequestParam("page") int page, @RequestParam("size") int size,
+                                          @RequestParam(value = "searchTitle",required = false) String searchTitle,
+                                          @RequestParam(value = "typeId", required = false) Integer typeId){
         // 创建一个空的JSONObject对象，用于存储查询结果
         JSONObject object = new JSONObject();
 
         Page<TopicDO> pageResult;
         // 根据是否有搜索条件执行不同的分页查询
-        if (searchTitle != null && !searchTitle.isEmpty()) {
+        if (searchTitle != null && !searchTitle.isEmpty() && typeId != null) {
+            // 创建查询条件包装器
+            LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 添加模糊查询条件，这里假设按评论内容进行搜索
+            queryWrapper.eq(TopicDO::getStatus, 1);
+            queryWrapper.eq(TopicDO::getType, typeId);
+            queryWrapper.like(TopicDO::getTitle, searchTitle);
+            // 执行带条件的分页查询
+            pageResult = service.page(Page.of(page, size), queryWrapper);
+        } else if (searchTitle != null && !searchTitle.isEmpty()) {
             // 创建查询条件包装器
             LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
             // 添加模糊查询条件，这里假设按评论内容进行搜索
@@ -53,8 +64,16 @@ public class ForumAdminController {
             queryWrapper.like(TopicDO::getTitle, searchTitle);
             // 执行带条件的分页查询
             pageResult = service.page(Page.of(page, size), queryWrapper);
+
+        } else if (typeId != null) {
+            // 创建查询条件包装器
+            LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
+            // 添加查询条件，这里假设按评论内容进行搜索
+            queryWrapper.eq(TopicDO::getType, typeId);
+            queryWrapper.eq(TopicDO::getStatus, 1);
+            // 执行带条件的分页查询
+            pageResult = service.page(Page.of(page, size), queryWrapper);
         } else {
-            // 执行普通分页查询
             // 创建查询条件包装器
             LambdaQueryWrapper<TopicDO> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(TopicDO::getStatus, 1);

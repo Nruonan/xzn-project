@@ -192,7 +192,7 @@ public class TopicServiceImpl extends ServiceImpl<TopicMapper, TopicDO> implemen
         if (list != null) return list;
         Page<TopicDO> page = new Page<>(pageNumber , 10);
 
-        if (type == 0){
+        if (type == 1){
             baseMapper.selectPage(page, Wrappers.lambdaQuery(TopicDO.class)
                     .eq(TopicDO::getStatus, 1)
                 .orderByDesc(TopicDO::getTime));
